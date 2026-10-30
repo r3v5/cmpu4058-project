@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     "rest_framework.authtoken",
     "rest_framework_gis",
     "django_filters",
+    "drf_spectacular",
     "ai_datacenters",
 ]
 
@@ -111,6 +112,15 @@ REST_FRAMEWORK = {
     "DEFAULT_FILTER_BACKENDS": [
         "django_filters.rest_framework.DjangoFilterBackend",
     ],
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "AI Data Center Map API",
+    "DESCRIPTION": "GeoJSON API for AI data centers with spatial queries.",
+    "VERSION": "1.0.0",
+    # The schema and Swagger UI need a login, like the rest of the API.
+    "SERVE_PERMISSIONS": ["rest_framework.permissions.IsAuthenticated"],
 }
 
 # --- Security -----------------------------------------------------------

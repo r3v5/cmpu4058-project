@@ -31,3 +31,34 @@ def make_dc(db):
         return DataCenter.objects.create(name=name, location=Point(lon, lat, srid=4326), **defaults)
 
     return make
+
+
+@pytest.fixture
+def api_client():
+    from rest_framework.test import APIClient
+
+    return APIClient()
+
+
+@pytest.fixture
+def demo_user(django_user_model):
+    return django_user_model.objects.create_user(username="demo", password="demo-pass-123!")
+
+
+@pytest.fixture
+def staff_user(django_user_model):
+    return django_user_model.objects.create_user(
+        username="admin", password="admin-pass-123!", is_staff=True
+    )
+
+
+@pytest.fixture
+def demo_client(api_client, demo_user):
+    api_client.force_authenticate(demo_user)
+    return api_client
+
+
+@pytest.fixture
+def staff_client(api_client, staff_user):
+    api_client.force_authenticate(staff_user)
+    return api_client
