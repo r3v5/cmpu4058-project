@@ -1,0 +1,6 @@
+{"type": "FeatureCollection", "features": [
+ {"type": "Feature", "properties": {"NAME_LONG": "Testland", "ADM0_A3": "TST"},
+  "geometry": {"type": "Polygon", "coordinates": [[[0,0],[10,0],[10,10],[0,10],[0,0]]]}},
+ {"type": "Feature", "properties": {"NAME_LONG": "Islandia", "ADM0_A3": "ISD"},
+  "geometry": {"type": "MultiPolygon", "coordinates": [[[[20,20],[21,20],[21,21],[20,21],[20,20]]],[[[22,22],[23,22],[23,23],[22,23],[22,22]]]]}}
+]}
