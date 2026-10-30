@@ -1,0 +1,16 @@
+{# Placeholder until the Phase 4 UI; keeps the Nginx healthcheck meaningful. #}
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Sign in · AI Data Center Map</title></head>
+<body>
+  <main>
+    <h1>Sign in</h1>
+    <form method="post">
+      {% csrf_token %}
+      {{ form.as_p }}
+      <input type="hidden" name="next" value="{{ next }}">
+      <button type="submit">Sign in</button>
+    </form>
+  </main>
+</body>
+</html>

@@ -1,1 +1,10 @@
 Assignment_Part1_NEW.docx
+.env
+__pycache__/
+*.py[cod]
+staticfiles/
+.coverage
+htmlcov/
+.pytest_cache/
+.DS_Store
+.playwright-mcp/

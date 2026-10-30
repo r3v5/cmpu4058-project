@@ -1,0 +1,10 @@
+.git
+.env
+__pycache__/
+*.py[cod]
+staticfiles/
+.pytest_cache/
+.coverage
+htmlcov/
+.playwright-mcp/
+*.docx
