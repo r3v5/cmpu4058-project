@@ -17,7 +17,7 @@
 {% endblock %}
 {% block content %}
 <h1 class="visually-hidden">Map of AI data centers</h1>
-<aside id="sidebar" class="offcanvas-lg offcanvas-start" tabindex="-1" aria-labelledby="sidebar-title">
+<section id="sidebar" class="offcanvas-lg offcanvas-start" tabindex="-1" aria-labelledby="sidebar-title">
   <div class="offcanvas-header">
     <h2 id="sidebar-title" class="offcanvas-title h5 text-uppercase">Explore sites</h2>
     <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#sidebar" aria-label="Close panel"></button>
@@ -58,13 +58,13 @@
           <button class="btn btn-outline-dark" type="button" id="run-country" disabled>Country here</button>
         </div>
         <div class="mt-3" id="spatial-results" aria-live="polite">
-          <h3 class="h6 text-uppercase" id="results-heading" hidden></h3>
+          <h2 class="h6 text-uppercase" id="results-heading" hidden></h2>
           <ol class="site-list" id="results"></ol>
         </div>
       </section>
     </div>
   </div>
-</aside>
+</section>
 
 <div class="map-column">
   <form class="map-toolbar" id="filters" role="search" aria-label="Search and filter sites" novalidate>
@@ -175,9 +175,9 @@
 
     <div class="size-toggle" role="radiogroup" aria-label="Size circles by">
       <input class="btn-check" type="radio" name="size" id="size-mw" value="power_mw" checked>
-      <label class="btn btn-size" for="size-mw">IT Power (MW)</label>
+      <label class="btn btn-size" for="size-mw"><span class="label-long">IT Power (MW)</span><span class="label-short" aria-hidden="true">MW</span></label>
       <input class="btn-check" type="radio" name="size" id="size-cost" value="capital_cost_busd">
-      <label class="btn btn-size" for="size-cost">Capital cost ($B)</label>
+      <label class="btn btn-size" for="size-cost"><span class="label-long">Capital cost ($B)</span><span class="label-short" aria-hidden="true">$B</span></label>
       <input class="btn-check" type="radio" name="size" id="size-h100e" value="h100e">
       <label class="btn btn-size" for="size-h100e" title="H100 equivalents">H100e</label>
     </div>

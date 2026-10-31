@@ -182,7 +182,12 @@
   }
 
   function markerStyle(props) {
-    return { radius: radiusFor(props[sizeMetric()]), color: "#000", weight: 1, fillColor: TEAL, fillOpacity: 0.9 };
+    // bubblingMouseEvents: false, so tapping a site opens its popup and
+    // does not also count as a tap on the map (which picks a search point).
+    return {
+      radius: radiusFor(props[sizeMetric()]), color: "#000", weight: 1, fillColor: TEAL, fillOpacity: 0.9,
+      bubblingMouseEvents: false,
+    };
   }
 
   function popupContent(props) {
@@ -386,6 +391,20 @@
 
   for (const toggle of filterForm.elements.size) toggle.addEventListener("change", renderMarkers);
 
+  // The page itself never scrolls, so a dropdown taller than the space below
+  // its button (phones, landscape) scrolls inside instead of being cut off.
+  function fitMenu(menu) {
+    // Measured from the button: Bootstrap positions the menu just after
+    // "shown", so the menu's own position is not final yet.
+    const button = menu.parentElement.querySelector("[data-bs-toggle='dropdown']");
+    const top = button.getBoundingClientRect().bottom + 2; // Bootstrap's default 2 px offset
+    menu.style.maxHeight = `${Math.max(160, window.innerHeight - top - 8)}px`;
+  }
+  for (const menu of document.querySelectorAll(".filter-menu, .help-menu")) {
+    menu.parentElement.addEventListener("shown.bs.dropdown", () => fitMenu(menu));
+  }
+  window.addEventListener("resize", () => document.querySelectorAll(".dropdown-menu.show").forEach(fitMenu));
+
   // ⓘ buttons in the filter menu show or hide a one-line explanation.
   for (const button of document.querySelectorAll("[data-help-toggle]")) {
     button.addEventListener("click", () => {
@@ -528,9 +547,41 @@
     );
   }
 
+  /** Popup at a tapped point offering the three nearby searches.
+   *
+   * Phones and tablets only: there the panel is hidden (a bottom sheet or a
+   * side drawer) and opens only once the user picks a search, so a tap to
+   * look around the map does not cover it. On desktop the Nearby tab is
+   * always visible and already has these buttons.
+   */
+  function pointPopup(latlng) {
+    const action = (label, primary, task) => {
+      const button = el("button", { class: `btn ${primary ? "btn-dark" : "btn-outline-dark"} btn-sm`, type: "button" }, label);
+      button.addEventListener("click", () => {
+        map.closePopup();
+        openNearbyPanel();
+        task();
+      });
+      return button;
+    };
+    const km = $("#within-km").value;
+    const content = el(
+      "div",
+      { class: "point-popup" },
+      el("h2", { class: "h6" }, "Search near this point"),
+      action($("#run-nearest").textContent, true, () => run(nearest)),
+      action(`Within ${km} km`, true, () => {
+        const radius = validRadius();
+        if (radius !== null) run(() => within(radius));
+      }),
+      action("Country here", false, () => run(countryHere)),
+    );
+    L.popup({ className: "point-popup-wrap", maxWidth: 240 }).setLatLng(latlng).setContent(content).openOn(map);
+  }
+
   map.on("click", (event) => {
     choosePoint(event.latlng);
-    openNearbyPanel();
+    if (!desktop.matches) pointPopup(event.latlng);
   });
   $("#use-centre").addEventListener("click", () => choosePoint(map.getCenter()));
   $("#run-nearest").addEventListener("click", () => run(nearest));
@@ -605,27 +656,33 @@
     return el("div", { class: "form-check" }, input, el("label", { class: "form-check-label", for: id }, text));
   }
 
+  // Layer checkboxes and the size legend share one <details> control. It is
+  // open on wider screens; on phones (portrait or landscape) it is a single
+  // "Layers" button, so nothing covers the small map.
+  const phone = window.matchMedia("(max-width: 575.98px), (max-height: 500px)");
+  const sizeLegend = el("div", { class: "size-legend" });
+  const layersBox = el(
+    "details",
+    { class: "map-toggles" },
+    el("summary", {}, "Layers"),
+    checkbox("toggle-choropleth", "Choropleth (MW)", toggleChoropleth),
+    checkbox("toggle-links", "Cluster links", toggleLinks),
+    sizeLegend,
+  );
+  layersBox.open = !phone.matches;
   const toggles = L.control({ position: "topright" });
   toggles.onAdd = () => {
-    const box = el(
-      "div",
-      { class: "map-toggles" },
-      checkbox("toggle-choropleth", "Choropleth (MW)", toggleChoropleth),
-      checkbox("toggle-links", "Cluster links", toggleLinks),
-    );
-    L.DomEvent.disableClickPropagation(box);
-    L.DomEvent.disableScrollPropagation(box);
-    return box;
+    L.DomEvent.disableClickPropagation(layersBox);
+    L.DomEvent.disableScrollPropagation(layersBox);
+    return layersBox;
   };
   toggles.addTo(map);
-
-  const sizeLegend = L.control({ position: "topright" });
-  sizeLegend.onAdd = () => {
-    const box = el("div", { class: "map-legend size-legend" });
-    L.DomEvent.disableClickPropagation(box);
-    return box;
-  };
-  sizeLegend.addTo(map);
+  // Collapse again when the screen becomes phone-sized (rotation, resize)
+  // and after a tap on the map, so the box never stays over the map there.
+  phone.addEventListener("change", (event) => (layersBox.open = !event.matches));
+  map.on("click", () => {
+    if (phone.matches) layersBox.open = false;
+  });
 
   /** "Circles sized by …" with three nested reference circles. */
   function renderSizeLegend() {
@@ -649,9 +706,8 @@
     svg.setAttribute("height", size);
     svg.setAttribute("aria-hidden", "true");
     svg.innerHTML = circles; // built only from the constants above
-    const box = sizeLegend.getContainer();
-    box.replaceChildren(
-      el("div", {}, "Circles sized by"),
+    sizeLegend.replaceChildren(
+      el("div", { class: "legend-intro" }, "Circles sized by"),
       el("div", { class: "fw-bold" }, metric.title),
       svg,
       el("div", { class: "visually-hidden" }, `Reference sizes: ${metric.legend.map(metric.format).join(", ")}.`),
