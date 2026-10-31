@@ -516,7 +516,15 @@
   }
 
   function applyFilters() {
-    if (!validateFilters()) return; // keep the menu open to show the errors
+    if (!validateFilters()) {
+      // Open the menu (Enter in the search box submits too) and take the
+      // user to the first error.
+      bootstrap.Dropdown.getOrCreateInstance($("#filter-toggle")).show();
+      filterForm.querySelector("[aria-invalid='true']").focus();
+      return;
+    }
+    // Apply is inside the menu, so focus would be lost when it closes.
+    if (filterForm.querySelector(".filter-menu").contains(document.activeElement)) $("#filter-toggle").focus();
     bootstrap.Dropdown.getOrCreateInstance($("#filter-toggle")).hide();
     // With "Only sites in map view" the view is the filter, so keep it.
     run(() => loadSites({ fit: !inViewBox.checked }));
@@ -534,7 +542,10 @@
     applyFilters();
   });
   $("#reset-filters").addEventListener("click", resetFilters);
-  $("#empty-reset").addEventListener("click", resetFilters);
+  $("#empty-reset").addEventListener("click", () => {
+    resetFilters();
+    $("#f-search").focus(); // the empty message and its button are hidden now
+  });
 
   // Search as you type, once typing pauses.
   let searchTimer;
@@ -729,6 +740,7 @@
       action($("#run-within").textContent, true, () => {
         const radius = validRadius();
         if (radius !== null) run(() => within(radius));
+        else $("#within-km").focus();
       }),
       action("Country here", false, () => run(countryHere)),
     );
@@ -767,6 +779,7 @@
     event.preventDefault();
     const km = validRadius();
     if (km !== null) run(() => within(km));
+    else $("#within-km").focus();
   });
 
   // ---- Map controls: choropleth and cluster links ---------------------
@@ -912,7 +925,11 @@
   } catch {
     $("#hint").hidden = false;
   }
-  $("#hint-close").addEventListener("click", dismissHint);
+  $("#hint-close").addEventListener("click", () => {
+    dismissHint();
+    mapElement.focus({ preventScroll: true });
+  });
+  $("#alerts").addEventListener("closed.bs.alert", () => mapElement.focus({ preventScroll: true }));
 
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
