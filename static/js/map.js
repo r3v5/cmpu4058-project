@@ -1,0 +1,663 @@
+/* Map page: markers, filters, sites list, nearby search, choropleth.
+ *
+ * All data comes from the REST API (/api/...). Text from the data is always
+ * inserted with textContent (through el()), never as HTML.
+ */
+"use strict";
+
+(() => {
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const desktop = window.matchMedia("(min-width: 992px)");
+  const tablet = window.matchMedia("(min-width: 768px)");
+  const $ = (selector) => document.querySelector(selector);
+
+  const mapElement = $("#map");
+  const filterForm = $("#filters");
+  const sidebar = $("#sidebar");
+  const HINT_KEY = "aidcm.hintDismissed";
+
+  // ---- Small helpers --------------------------------------------------
+
+  /** Create an element. Strings in children become text nodes. */
+  function el(tag, attrs = {}, ...children) {
+    const node = document.createElement(tag);
+    for (const [name, value] of Object.entries(attrs)) {
+      if (value === null || value === undefined || value === false) continue;
+      if (name === "class") node.className = value;
+      else if (name.startsWith("on")) node.addEventListener(name.slice(2), value);
+      else node.setAttribute(name, value === true ? "" : value);
+    }
+    for (const child of children.flat(Infinity)) {
+      if (child !== null && child !== undefined) node.append(child);
+    }
+    return node;
+  }
+
+  const fmtMW = (mw) => `${Math.round(mw).toLocaleString("en")} MW`;
+  const fmtCost = (busd) => `$${busd.toFixed(1)}B`;
+  // Epoch AI records only current figures, so a site that is not running
+  // yet has 0 MW and $0 cost. Show that in words instead of as a zero.
+  const NOT_OPERATIONAL = "Not yet operational";
+  const siteMW = (props) => (props.power_mw > 0 ? fmtMW(props.power_mw) : NOT_OPERATIONAL);
+  const siteCost = (props) => (props.capital_cost_busd > 0 ? fmtCost(props.capital_cost_busd) : "—");
+  const fmtKm = (km) => `${km < 10 ? km.toFixed(1) : Math.round(km).toLocaleString("en")} km`;
+  const FIELD_LABELS = { lat: "Latitude", lon: "Longitude", km: "Radius", n: "Number of sites" };
+
+  // ---- API ------------------------------------------------------------
+
+  class ApiError extends Error {}
+
+  function csrfToken() {
+    const match = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : "";
+  }
+
+  let pending = 0;
+  function setLoading(delta) {
+    pending += delta;
+    $("#loading").hidden = pending === 0;
+    mapElement.setAttribute("aria-busy", pending > 0 ? "true" : "false");
+  }
+
+  /** GET a JSON API path; failures become an ApiError with a plain message. */
+  async function api(path, params) {
+    const url = params && params.toString() ? `${path}?${params}` : path;
+    setLoading(1);
+    try {
+      let response;
+      try {
+        response = await fetch(url, {
+          credentials: "same-origin",
+          headers: { Accept: "application/json", "X-CSRFToken": csrfToken() },
+        });
+      } catch {
+        throw new ApiError("Cannot reach the server. Check your connection and try again.");
+      }
+      if (response.ok) return response.json();
+      const body = await response.json().catch(() => ({}));
+      if (response.status === 401 || response.status === 403) {
+        throw new ApiError("Your session has ended. Please sign in again.");
+      }
+      if (response.status === 404) throw new ApiError(body.detail || "Nothing was found here.");
+      if (response.status === 400) {
+        const messages = Object.entries(body).map(
+          ([field, errors]) => `${FIELD_LABELS[field] || field}: ${[].concat(errors).join(" ")}`,
+        );
+        throw new ApiError(messages.join(" ") || "Some values are not valid.");
+      }
+      throw new ApiError("Something went wrong on the server. Please try again.");
+    } finally {
+      setLoading(-1);
+    }
+  }
+
+  function showAlert(message) {
+    const alert = el(
+      "div",
+      { class: "alert alert-app alert-dismissible", role: "alert" },
+      el("span", { "aria-hidden": "true" }, "⚠ "),
+      message,
+      el("button", { type: "button", class: "btn-close", "data-bs-dismiss": "alert", "aria-label": "Close message" }),
+    );
+    $("#alerts").replaceChildren(alert);
+  }
+
+  /** Run an async task and show any error as an alert. */
+  async function run(task) {
+    try {
+      await task();
+    } catch (error) {
+      if (error instanceof ApiError) showAlert(error.message);
+      else {
+        console.error(error);
+        showAlert("Something went wrong. Please try again.");
+      }
+    }
+  }
+
+  // ---- Map ------------------------------------------------------------
+
+  const map = L.map(mapElement, {
+    keyboard: true,
+    worldCopyJump: true,
+    zoomAnimation: !reduceMotion,
+    fadeAnimation: !reduceMotion,
+    markerZoomAnimation: !reduceMotion,
+  }).setView([30, 0], 2);
+
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  }).addTo(map);
+  map.attributionControl.addAttribution(
+    'Data: <a href="https://epoch.ai/data/data_centers">Epoch AI</a> (CC BY) · Borders: Natural Earth',
+  );
+
+  map.createPane("choropleth").style.zIndex = 350; // below the markers and results
+  const choroplethLayer = L.layerGroup();
+  const linksLayer = L.layerGroup();
+  const queryLayer = L.layerGroup().addTo(map);
+  const resultsLayer = L.layerGroup().addTo(map);
+  // From this zoom on every marker is drawn on its own, so a site chosen
+  // from a list is visible under its popup.
+  const SITE_ZOOM = 9;
+  const cluster = L.markerClusterGroup({
+    showCoverageOnHover: false,
+    maxClusterRadius: 40,
+    disableClusteringAtZoom: SITE_ZOOM,
+    animate: !reduceMotion,
+    iconCreateFunction: (group) =>
+      L.divIcon({ html: String(group.getChildCount()), className: "cluster-icon", iconSize: L.point(36, 36) }),
+  }).addTo(map);
+
+  const fitOptions = { padding: [30, 30], maxZoom: 8, animate: !reduceMotion };
+
+  // ---- Markers --------------------------------------------------------
+
+  let sites = []; // GeoJSON features currently shown
+
+  // Circle size: area proportional to the chosen value, as on the Epoch AI
+  // map. legend[0] is drawn at MAX_RADIUS; the other two show the scale.
+  const MAX_RADIUS = 22;
+  const MIN_RADIUS = 3;
+  const SIZES = {
+    power_mw: { title: "IT Power (MW)", legend: [1000, 500, 100], format: fmtMW, short: (v) => v.toLocaleString("en") },
+    capital_cost_busd: { title: "Capital cost ($B)", legend: [40, 16, 4], format: fmtCost, short: (v) => `$${v}B` },
+  };
+  const TEAL = "#4fd1b5";
+  const sizeMetric = () => filterForm.elements.size.value;
+
+  function radiusFor(value, metric = sizeMetric()) {
+    const reference = SIZES[metric].legend[0];
+    return Math.max(MIN_RADIUS, MAX_RADIUS * Math.sqrt(Math.max(value, 0) / reference));
+  }
+
+  function markerStyle(props) {
+    return { radius: radiusFor(props[sizeMetric()]), color: "#000", weight: 1, fillColor: TEAL, fillOpacity: 0.9 };
+  }
+
+  function popupContent(props) {
+    const rows = [
+      ["Owner", props.owner],
+      ["Users", props.users || "—"],
+      ["Country", props.country || "—"],
+      ["Power", siteMW(props)],
+      ["Capital cost", siteCost(props)],
+    ];
+    if (props.nearest_km !== null && props.nearest_km !== undefined) {
+      rows.push(["Nearest other site", fmtKm(props.nearest_km)]);
+    }
+    return el(
+      "div",
+      { class: "site-popup" },
+      el("h2", { class: "h6" }, props.name),
+      el("dl", {}, rows.map(([term, value]) => [el("dt", {}, term), el("dd", {}, value)])),
+    );
+  }
+
+  function latLngOf(feature) {
+    const [lon, lat] = feature.geometry.coordinates;
+    return L.latLng(lat, lon);
+  }
+
+  function renderMarkers() {
+    const metric = SIZES[sizeMetric()];
+    // A marker removed under the mouse never gets "mouseout", so close its
+    // tooltip first or it stays on the map.
+    cluster.eachLayer((layer) => layer.closeTooltip());
+    cluster.clearLayers();
+    cluster.addLayers(
+      sites.map((feature) => {
+        const props = feature.properties;
+        const marker = L.circleMarker(latLngOf(feature), markerStyle(props));
+        marker.bindPopup(() => popupContent(props));
+        // Hover shows the value the circle is sized by, e.g. "1,037 MW".
+        const value = props[sizeMetric()];
+        marker.bindTooltip(value > 0 ? metric.format(value) : NOT_OPERATIONAL, {
+          direction: "top",
+          offset: [0, -marker.getRadius()],
+          className: "value-tooltip",
+        });
+        return marker;
+      }),
+    );
+    renderSizeLegend();
+  }
+
+  /** Zoom to a site chosen from a list and open its popup.
+   *
+   * A standalone popup, not the marker's own: nearby searches cover all
+   * sites, so the site may be hidden by the filters. (markercluster's
+   * zoomToShowLayer never calls back for circle markers.)
+   */
+  function showSite(feature) {
+    if (!desktop.matches) bootstrap.Offcanvas.getOrCreateInstance(sidebar).hide();
+    const latlng = latLngOf(feature);
+    map.once("moveend", () =>
+      L.popup({ offset: [0, -4] }).setLatLng(latlng).setContent(popupContent(feature.properties)).openOn(map),
+    );
+    map.setView(latlng, Math.max(map.getZoom(), SITE_ZOOM), { animate: !reduceMotion });
+  }
+
+  function siteButton(feature, detail) {
+    return el(
+      "li",
+      {},
+      el(
+        "button",
+        { type: "button", onclick: () => showSite(feature) },
+        feature.properties.name,
+        el("span", { class: "detail" }, detail),
+      ),
+    );
+  }
+
+  // ---- Filters --------------------------------------------------------
+
+  const RANGES = [
+    { min: "mw_min", max: "mw_max", error: "#mw-error", label: "Power" },
+    { min: "cost_min", max: "cost_max", error: "#cost-error", label: "Capital cost" },
+  ];
+
+  /** Check the min/max fields before calling the API. */
+  function validateFilters() {
+    let valid = true;
+    for (const range of RANGES) {
+      const inputs = [filterForm.elements[range.min], filterForm.elements[range.max]];
+      const error = $(range.error);
+      let message = "";
+      inputs.forEach((input) => input.removeAttribute("aria-invalid"));
+      for (const input of inputs) {
+        const value = Number(input.value);
+        if (input.validity.badInput || (input.value !== "" && (!Number.isFinite(value) || value < 0))) {
+          message = `${range.label}: enter a number of 0 or more.`;
+          input.setAttribute("aria-invalid", "true");
+        }
+      }
+      const [min, max] = inputs.map((input) => input.value);
+      if (!message && min !== "" && max !== "" && Number(min) > Number(max)) {
+        message = `${range.label}: the minimum is larger than the maximum.`;
+        inputs.forEach((input) => input.setAttribute("aria-invalid", "true"));
+      }
+      error.textContent = message ? `⚠ ${message}` : "";
+      error.hidden = !message;
+      if (message) valid = false;
+    }
+    return valid;
+  }
+
+  const inViewBox = $("#f-in-view");
+
+  /** The visible map area as "min_lon,min_lat,max_lon,max_lat" for ?bbox=.
+   *
+   * Leaflet longitudes keep growing past ±180 when the user pans round the
+   * world, so the box is shifted back into -180..180 first. A view that
+   * crosses the date line, or shows the whole world, uses every longitude.
+   */
+  function viewBbox() {
+    const bounds = map.getBounds();
+    let west = bounds.getWest();
+    let east = bounds.getEast();
+    const shift = Math.floor((west + 180) / 360) * 360;
+    west -= shift;
+    east -= shift;
+    if (east - west >= 360 || east > 180) [west, east] = [-180, 180];
+    const south = Math.max(bounds.getSouth(), -90);
+    const north = Math.min(bounds.getNorth(), 90);
+    return [west, south, east, north].map((n) => n.toFixed(4)).join(",");
+  }
+
+  /** Query string for the API: search + filters ("size" only changes the drawing). */
+  function filterParams() {
+    const params = new URLSearchParams();
+    for (const [name, value] of new FormData(filterForm)) {
+      if (name !== "size" && String(value).trim() !== "") params.append(name, String(value).trim());
+    }
+    if (inViewBox.checked) params.set("bbox", viewBbox());
+    return params;
+  }
+
+  /** Number of active filters, shown on the Filter button. */
+  function updateFilterCount() {
+    const active = [...filterParams().keys()].filter((name) => name !== "search");
+    const owners = active.filter((name) => name === "owner").length;
+    const count = active.length - Math.max(owners - 1, 0); // several owners count as one filter
+    $("#filter-count").textContent = count ? String(count) : "";
+    $("#filter-toggle").setAttribute("aria-label", count ? `Filter, ${count} active` : "Filter");
+  }
+
+  let latestLoad = 0;
+  async function loadSites({ fit }) {
+    const load = ++latestLoad;
+    const data = await api("/api/datacenters/", filterParams());
+    if (load !== latestLoad) return; // a newer search is already running
+    sites = data.features;
+    renderMarkers();
+    updateFilterCount();
+    $("#result-count").textContent = `${sites.length} ${sites.length === 1 ? "result" : "results"}`;
+    $("#empty").hidden = sites.length > 0;
+    $("#sites-list").replaceChildren(
+      ...sites.map((f) => siteButton(f, `${f.properties.owner} · ${siteMW(f.properties)}`)),
+    );
+    if (linksOn()) drawLinks();
+    if (fit && sites.length) map.fitBounds(cluster.getBounds(), fitOptions);
+  }
+
+  function applyFilters() {
+    if (!validateFilters()) return; // keep the menu open to show the errors
+    bootstrap.Dropdown.getOrCreateInstance($("#filter-toggle")).hide();
+    // With "Only sites in map view" the view is the filter, so keep it.
+    run(() => loadSites({ fit: !inViewBox.checked }));
+  }
+
+  function resetFilters() {
+    filterForm.reset();
+    validateFilters();
+    run(() => loadSites({ fit: false }));
+    map.setView([30, 0], 2, { animate: !reduceMotion });
+  }
+
+  filterForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    applyFilters();
+  });
+  $("#reset-filters").addEventListener("click", resetFilters);
+  $("#empty-reset").addEventListener("click", resetFilters);
+
+  // Search as you type, once typing pauses.
+  let searchTimer;
+  $("#f-search").addEventListener("input", () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      if (validateFilters()) run(() => loadSites({ fit: false }));
+    }, 300);
+  });
+
+  for (const toggle of filterForm.elements.size) toggle.addEventListener("change", renderMarkers);
+
+  // "Only sites in map view": reload when ticked, and after each pan or zoom.
+  inViewBox.addEventListener("change", () => {
+    if (validateFilters()) run(() => loadSites({ fit: false }));
+  });
+  let viewTimer;
+  map.on("moveend", () => {
+    if (!inViewBox.checked) return;
+    clearTimeout(viewTimer);
+    viewTimer = setTimeout(() => {
+      if (validateFilters()) run(() => loadSites({ fit: false }));
+    }, 300);
+  });
+
+  // ---- Sidebar placement on small screens ----------------------------
+
+  function setPlacement(placement) {
+    sidebar.classList.remove("offcanvas-start", "offcanvas-end", "offcanvas-bottom");
+    sidebar.classList.add(`offcanvas-${placement}`);
+  }
+
+  /** Below 992 px the nearby panel slides in from the bottom (phone) or right (tablet). */
+  function openNearbyPanel() {
+    if (desktop.matches || sidebar.classList.contains("show")) return;
+    setPlacement(tablet.matches ? "end" : "bottom");
+    bootstrap.Offcanvas.getOrCreateInstance(sidebar).show();
+  }
+
+  sidebar.addEventListener("hidden.bs.offcanvas", () => {
+    setPlacement("start"); // the ☰ button opens the filters from the left
+    map.invalidateSize();
+  });
+  sidebar.addEventListener("shown.bs.offcanvas", () => map.invalidateSize());
+  window.addEventListener("resize", () => map.invalidateSize());
+
+  // ---- Nearby search -------------------------------------------------
+
+  let queryPoint = null;
+  const actionButtons = ["#run-nearest", "#run-within", "#run-country"].map((id) => $(id));
+
+  function choosePoint(latlng) {
+    queryPoint = latlng.wrap();
+    queryLayer.clearLayers();
+    clearResults();
+    L.marker(latlng, {
+      icon: L.divIcon({ className: "query-point", html: "✕", iconSize: [24, 24] }),
+      interactive: false,
+      keyboard: false,
+    }).addTo(queryLayer);
+    $("#query-point").textContent = `Point: ${queryPoint.lat.toFixed(2)}, ${queryPoint.lng.toFixed(2)}`;
+    actionButtons.forEach((button) => (button.disabled = false));
+    bootstrap.Tab.getOrCreateInstance($("#tab-nearby")).show();
+    dismissHint();
+  }
+
+  function pointParams(extra = {}) {
+    return new URLSearchParams({ lat: queryPoint.lat.toFixed(6), lon: queryPoint.lng.toFixed(6), ...extra });
+  }
+
+  function clearResults() {
+    resultsLayer.clearLayers();
+    $("#results-heading").hidden = true;
+    $("#results").replaceChildren();
+  }
+
+  function showResults(heading, items) {
+    $("#results-heading").textContent = heading;
+    $("#results-heading").hidden = false;
+    $("#results").replaceChildren(
+      ...(items.length ? items : [el("li", { class: "text-secondary py-2" }, "No sites found.")]),
+    );
+  }
+
+  function fitTo(layer) {
+    const bounds = layer.getBounds();
+    if (bounds.isValid()) map.fitBounds(bounds, fitOptions);
+  }
+
+  async function nearest() {
+    const data = await api("/api/datacenters/nearest/", pointParams({ n: 5 }));
+    clearResults();
+    const lines = L.geoJSON(
+      data.features.map((f) => f.properties.link),
+      { style: { color: "#000", weight: 2, dashArray: "6 6" }, interactive: false },
+    ).addTo(resultsLayer);
+    fitTo(lines);
+    showResults(
+      `Nearest ${data.features.length} sites`,
+      data.features.map((f) =>
+        siteButton(f, `${fmtKm(f.properties.distance_km)} · ${siteMW(f.properties)}`),
+      ),
+    );
+  }
+
+  function validRadius() {
+    const input = $("#within-km");
+    const error = $("#within-error");
+    const km = Number(input.value);
+    const ok = input.value !== "" && Number.isFinite(km) && km > 0 && km <= 5000;
+    if (ok) input.removeAttribute("aria-invalid");
+    else input.setAttribute("aria-invalid", "true");
+    error.textContent = ok ? "" : "⚠ Enter a radius from 1 to 5000 km.";
+    error.hidden = ok;
+    return ok ? km : null;
+  }
+
+  async function within(km) {
+    const data = await api("/api/datacenters/within/", pointParams({ km }));
+    clearResults();
+    const buffer = L.geoJSON(data.buffer, {
+      style: { color: "#000", weight: 2, fillColor: "#000", fillOpacity: 0.1 },
+      interactive: false,
+    }).addTo(resultsLayer);
+    fitTo(buffer);
+    const found = data.sites.features;
+    showResults(
+      `${found.length} ${found.length === 1 ? "site" : "sites"} within ${fmtKm(km)}`,
+      found.map((f) => siteButton(f, `${fmtKm(f.properties.distance_km)} · ${siteMW(f.properties)}`)),
+    );
+  }
+
+  async function countryHere() {
+    clearResults();
+    const data = await api("/api/countries/at/", pointParams());
+    const outline = L.geoJSON(data.country, { style: { color: "#000", weight: 4, fill: false }, interactive: false })
+      .addTo(resultsLayer);
+    fitTo(outline);
+    const c = data.country.properties;
+    showResults(
+      `${c.name}: ${c.site_count} ${c.site_count === 1 ? "site" : "sites"} · ${fmtMW(c.total_mw)} · ${fmtCost(c.total_cost_busd)}`,
+      data.sites.features.map((f) => siteButton(f, `${f.properties.owner} · ${siteMW(f.properties)}`)),
+    );
+  }
+
+  map.on("click", (event) => {
+    choosePoint(event.latlng);
+    openNearbyPanel();
+  });
+  $("#use-centre").addEventListener("click", () => choosePoint(map.getCenter()));
+  $("#run-nearest").addEventListener("click", () => run(nearest));
+  $("#run-country").addEventListener("click", () => run(countryHere));
+  $("#within-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const km = validRadius();
+    if (km !== null) run(() => within(km));
+  });
+
+  // ---- Map controls: choropleth and cluster links ---------------------
+
+  const RAMP = [
+    { below: 500, fill: "#d9d9d9", label: "< 500" },
+    { below: 2000, fill: "#a6a6a6", label: "< 2 000" },
+    { below: 10000, fill: "#595959", label: "< 10 000" },
+    { below: Infinity, fill: "#000", label: "≥ 10 000" },
+  ];
+  const rampFill = (mw) => (mw <= 0 ? "#fff" : RAMP.find((step) => mw < step.below).fill);
+
+  const choroplethLegend = L.control({ position: "bottomright" });
+  choroplethLegend.onAdd = () =>
+    el(
+      "div",
+      { class: "map-legend" },
+      el("div", { class: "fw-bold" }, "Total MW per country"),
+      el("div", {}, el("span", { class: "ramp", style: "background:#fff" }), "0"),
+      RAMP.map((step) => el("div", {}, el("span", { class: "ramp", style: `background:${step.fill}` }), step.label)),
+    );
+
+  let choroplethLoaded = false;
+  async function toggleChoropleth(on) {
+    if (!on) {
+      map.removeLayer(choroplethLayer);
+      choroplethLegend.remove();
+      return;
+    }
+    if (!choroplethLoaded) {
+      const data = await api("/api/countries/stats/");
+      L.geoJSON(data, {
+        pane: "choropleth",
+        style: (f) => ({ fillColor: rampFill(f.properties.total_mw), fillOpacity: 0.75, color: "#000", weight: 0.5 }),
+        onEachFeature: (f, layer) => {
+          const p = f.properties;
+          layer.bindTooltip(el("span", {}, `${p.name}: ${fmtMW(p.total_mw)} · ${p.site_count} sites`), { sticky: true });
+        },
+      }).addTo(choroplethLayer);
+      choroplethLoaded = true;
+    }
+    choroplethLayer.addTo(map);
+    choroplethLegend.addTo(map);
+  }
+
+  const linksOn = () => $("#toggle-links").checked;
+  function drawLinks() {
+    linksLayer.clearLayers();
+    const links = sites.map((f) => f.properties.nearest_link).filter(Boolean);
+    L.geoJSON(links, { style: { color: "#555", weight: 1 }, interactive: false }).addTo(linksLayer);
+  }
+  function toggleLinks(on) {
+    if (on) {
+      drawLinks();
+      linksLayer.addTo(map);
+    } else {
+      map.removeLayer(linksLayer);
+    }
+  }
+
+  function checkbox(id, text, onChange) {
+    const input = el("input", { class: "form-check-input", type: "checkbox", id });
+    input.addEventListener("change", () => run(() => onChange(input.checked)));
+    return el("div", { class: "form-check" }, input, el("label", { class: "form-check-label", for: id }, text));
+  }
+
+  const toggles = L.control({ position: "topright" });
+  toggles.onAdd = () => {
+    const box = el(
+      "div",
+      { class: "map-toggles" },
+      checkbox("toggle-choropleth", "Choropleth (MW)", toggleChoropleth),
+      checkbox("toggle-links", "Cluster links", toggleLinks),
+    );
+    L.DomEvent.disableClickPropagation(box);
+    L.DomEvent.disableScrollPropagation(box);
+    return box;
+  };
+  toggles.addTo(map);
+
+  const sizeLegend = L.control({ position: "topright" });
+  sizeLegend.onAdd = () => {
+    const box = el("div", { class: "map-legend size-legend" });
+    L.DomEvent.disableClickPropagation(box);
+    return box;
+  };
+  sizeLegend.addTo(map);
+
+  /** "Circles sized by …" with three nested reference circles. */
+  function renderSizeLegend() {
+    const metric = SIZES[sizeMetric()];
+    const size = MAX_RADIUS * 2 + 2;
+    const labelX = size + 8;
+    // Nested circles sharing their bottom edge; each label sits to the right
+    // of its circle's top, joined by a short line.
+    const circles = metric.legend
+      .map((value, i) => {
+        const r = radiusFor(value);
+        const top = size - 1 - 2 * r;
+        const labelY = Math.max(top, i * 12) + 4;
+        return `<circle cx="${size / 2}" cy="${size - 1 - r}" r="${r}" fill="none" stroke="#000"/>` +
+          `<line x1="${size / 2}" y1="${top}" x2="${labelX - 2}" y2="${labelY - 4}" stroke="#555" stroke-width="0.75"/>` +
+          `<text x="${labelX}" y="${labelY}">${metric.short(value)}</text>`;
+      })
+      .join("");
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("width", size + 44);
+    svg.setAttribute("height", size);
+    svg.setAttribute("aria-hidden", "true");
+    svg.innerHTML = circles; // built only from the constants above
+    const box = sizeLegend.getContainer();
+    box.replaceChildren(
+      el("div", {}, "Circles sized by"),
+      el("div", { class: "fw-bold" }, metric.title),
+      svg,
+      el("div", { class: "visually-hidden" }, `Reference sizes: ${metric.legend.map(metric.format).join(", ")}.`),
+    );
+  }
+
+  // ---- First-visit hint and keyboard ---------------------------------
+
+  function dismissHint() {
+    $("#hint").hidden = true;
+    try {
+      localStorage.setItem(HINT_KEY, "1");
+    } catch {
+      /* private mode: the hint simply shows again next time */
+    }
+  }
+  try {
+    $("#hint").hidden = localStorage.getItem(HINT_KEY) === "1";
+  } catch {
+    $("#hint").hidden = false;
+  }
+  $("#hint-close").addEventListener("click", dismissHint);
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") map.closePopup();
+  });
+
+  run(() => loadSites({ fit: false }));
+})();

@@ -1,0 +1,176 @@
+/* Black and white theme on top of Bootstrap 5. Greys only for borders (#ddd)
+   and muted text (#555, 7.5:1 on white). The one colour is the teal of the
+   site circles, as on the Epoch AI map; a black outline keeps their edges
+   visible (WCAG 1.4.11). */
+
+:root,
+[data-bs-theme="light"] {
+  --bs-body-font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --bs-body-color: #000;
+  --bs-body-color-rgb: 0, 0, 0;
+  --bs-body-bg: #fff;
+  --bs-emphasis-color: #000;
+  --bs-secondary-color: #555;
+  --bs-primary: #000;
+  --bs-primary-rgb: 0, 0, 0;
+  --bs-link-color: #000;
+  --bs-link-color-rgb: 0, 0, 0;
+  --bs-link-hover-color: #000;
+  --bs-link-hover-color-rgb: 0, 0, 0;
+  --bs-border-color: #ddd;
+  --bs-border-radius: 0;
+  --bs-border-radius-sm: 0;
+  --bs-border-radius-lg: 0;
+  --bs-border-radius-xl: 0;
+  --bs-border-radius-xxl: 0;
+  --bs-focus-ring-color: #000;
+}
+
+.text-secondary { color: #555 !important; }
+
+/* No shadows anywhere; a 2 px black outline is the focus indicator. */
+.btn, .form-control, .form-select, .form-check-input, .nav-link, .btn-close { box-shadow: none !important; }
+:focus-visible { outline: 2px solid #000 !important; outline-offset: 2px; }
+.btn-dark:focus-visible { outline-offset: 3px; }
+
+.form-control:focus, .form-select:focus, .form-check-input:focus { border-color: #000; }
+.form-control, .form-select { border-color: #555; }
+.form-check-input:checked { background-color: #000; border-color: #000; }
+
+/* Touch targets of at least 44 x 44 px. */
+.btn, .form-control, .form-select, .nav-link { min-height: 44px; }
+.btn-sm { min-height: 44px; padding-inline: .75rem; }
+.btn-dark { --bs-btn-bg: #000; --bs-btn-border-color: #000; --bs-btn-hover-bg: #333; --bs-btn-hover-border-color: #333; --bs-btn-active-bg: #000; }
+.btn-close { width: 1em; height: 1em; padding: 14px; box-sizing: content-box; opacity: 1; }
+
+/* Field errors: thick border plus an icon and text, never colour alone. */
+.form-control[aria-invalid="true"], .form-select[aria-invalid="true"] { border: 3px solid #000; }
+.field-error { font-size: .875rem; margin-top: .25rem; font-weight: 600; }
+.alert-app { border: 2px solid #000; background: #fff; color: #000; }
+
+.skip-link { position: absolute; left: .5rem; top: .5rem; z-index: 2000; background: #fff; padding: .5rem 1rem; border: 2px solid #000; }
+.app-header { border-bottom: 1px solid #000; background: #fff; }
+.navbar-brand { letter-spacing: .04em; font-size: 1rem; }
+
+.auth-page { max-width: 24rem; margin: 3rem auto; padding: 0 1rem; }
+
+/* ---- Map page --------------------------------------------------------- */
+
+.map-body { height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+.map-main { flex: 1 1 auto; display: flex; min-height: 0; }
+.map-main:focus { outline: none; }
+
+.map-column { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.map-wrap { position: relative; flex: 1 1 auto; min-height: 0; }
+
+/* Toolbar above the map: search, Filter dropdown, size toggles, count. */
+.map-toolbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: .5rem;
+  padding: .5rem .75rem; border-bottom: 1px solid #ddd; background: #fff;
+}
+.toolbar-search { position: relative; flex: 1 1 16rem; min-width: 0; }
+.toolbar-search .form-control { padding-left: 2.25rem; }
+.search-icon { position: absolute; left: .75rem; top: 50%; transform: translateY(-50%); color: #555; pointer-events: none; }
+.toolbar-button { display: inline-flex; align-items: center; gap: .4rem; }
+.filter-count:not(:empty) { background: #000; color: #fff; padding: 0 .4rem; font-size: .8rem; font-weight: 700; }
+.btn-outline-dark:hover .filter-count, .btn-outline-dark.show .filter-count { background: #fff; color: #000; }
+/* Above the Leaflet controls (z-index 1000) and the map hint. */
+.filter-menu { width: min(22rem, calc(100vw - 1.5rem)); border: 1px solid #000; z-index: 1100; }
+.in-view-check { display: grid; grid-template-columns: auto 1fr; align-items: center; column-gap: .5rem; min-height: 44px; padding-left: 0; }
+.in-view-check .form-check-input { float: none; margin: 0; width: 1.25rem; height: 1.25rem; border-color: #000; }
+.in-view-check .form-text { grid-column: 2; margin-top: 0; }
+.size-toggle { display: flex; gap: .5rem; }
+.btn-size { display: inline-flex; align-items: center; background: #ececec; border: 0; color: #000; font-weight: 500; }
+.btn-size:hover { background: #ddd; color: #000; }
+.btn-check:checked + .btn-size { background: #000; color: #fff; }
+.btn-check:focus-visible + .btn-size { outline: 2px solid #000; outline-offset: 2px; }
+.toolbar-count { color: #555; font-weight: 600; white-space: nowrap; }
+@media (max-width: 575.98px) {
+  .toolbar-search { flex-basis: 100%; }
+  .size-toggle .btn { padding-inline: .6rem; }
+}
+#map { position: absolute; inset: 0; }
+
+#sidebar .nav-link { color: #000; padding-inline: .5rem; }
+#sidebar .nav-tabs { --bs-nav-tabs-border-color: #000; --bs-nav-tabs-link-active-border-color: #000 #000 #fff; }
+#sidebar .nav-link.active { font-weight: 700; }
+
+.range-row { display: flex; align-items: center; gap: .5rem; }
+.range-row .form-control { min-width: 0; }
+.within-row { display: flex; align-items: flex-end; gap: .5rem; }
+
+.site-list { list-style: none; padding: 0; margin: 0; }
+.site-list li + li { border-top: 1px solid #ddd; }
+.site-list button {
+  display: block; width: 100%; min-height: 44px; padding: .5rem .25rem;
+  text-align: left; background: none; border: 0; color: #000;
+}
+.site-list button:hover { background: #f2f2f2; }
+.site-list .detail { display: block; font-size: .875rem; color: #555; }
+ol.site-list { counter-reset: result; }
+ol.site-list li { counter-increment: result; }
+ol.site-list button::before { content: counter(result) "  "; font-weight: 700; }
+
+/* Desktop and tablet landscape: fixed sidebar beside the map. */
+@media (min-width: 992px) {
+  #sidebar { flex: 0 0 300px; width: 300px; display: flex; flex-direction: column; border-right: 1px solid #ddd; }
+  #sidebar .offcanvas-body { display: block; flex: 1 1 auto; overflow-y: auto; padding: 1rem; }
+}
+/* Tablet portrait: wider panel. Mobile: the nearby search is a bottom sheet. */
+@media (min-width: 768px) and (max-width: 991.98px) {
+  #sidebar.offcanvas-start, #sidebar.offcanvas-end { --bs-offcanvas-width: 360px; }
+}
+#sidebar.offcanvas-bottom { --bs-offcanvas-height: 60vh; }
+
+/* Leaflet: greyscale OpenStreetMap tiles, square plain popups, big controls. */
+.leaflet-tile-pane { filter: grayscale(1) contrast(1.1); }
+.leaflet-container { font: inherit; background: #fff; }
+.leaflet-container a { color: #000; }
+.leaflet-bar a, .leaflet-touch .leaflet-bar a { width: 44px; height: 44px; line-height: 44px; border-radius: 0 !important; color: #000; }
+.leaflet-bar, .leaflet-touch .leaflet-bar { border: 1px solid #000; border-radius: 0; box-shadow: none; }
+.leaflet-popup-content-wrapper { border-radius: 0; border: 1px solid #000; box-shadow: none; }
+.leaflet-popup-tip { box-shadow: none; border: 1px solid #000; }
+.leaflet-container a.leaflet-popup-close-button { width: 44px; height: 44px; font-size: 24px; line-height: 44px; color: #000; }
+.leaflet-control-attribution { font-size: .75rem; }
+
+.site-popup h2 { margin: 0 2rem .5rem 0; padding-bottom: .25rem; border-bottom: 1px solid #000; }
+.site-popup dl { display: grid; grid-template-columns: auto 1fr; gap: .125rem .75rem; margin: 0; }
+.site-popup dt { font-weight: 400; color: #555; }
+.site-popup dd { margin: 0; }
+
+.cluster-icon {
+  display: flex; align-items: center; justify-content: center;
+  background: #4fd1b5; color: #000; border: 1px solid #000; border-radius: 50%;
+  font-weight: 700; font-size: .8rem;
+}
+.value-tooltip {
+  border: 1px solid #000; border-radius: 0; box-shadow: none;
+  font-weight: 700; font-size: .95rem; padding: .2rem .5rem;
+}
+.size-legend { text-align: center; }
+.size-legend svg { display: block; margin: .25rem auto 0; overflow: visible; }
+.size-legend text { font-size: 11px; }
+.query-point { color: #000; font-size: 24px; font-weight: 700; line-height: 24px; text-align: center; text-shadow: 0 0 3px #fff, 0 0 3px #fff; }
+
+.map-panel, .map-legend, .map-toggles {
+  background: #fff; border: 1px solid #000; padding: .5rem .75rem; font-size: .875rem;
+}
+.map-toggles .form-check { display: flex; align-items: center; gap: .5rem; min-height: 44px; margin: 0; padding: 0; }
+.map-toggles .form-check-input { float: none; margin: 0; width: 1.25rem; height: 1.25rem; border-color: #000; }
+.ramp { display: inline-block; width: 1.25rem; height: .9rem; border: 1px solid #000; vertical-align: -2px; margin-right: .25rem; }
+
+.map-alerts { position: absolute; top: .75rem; left: 4rem; right: 4rem; z-index: 1100; }
+.map-alerts .alert { margin-bottom: .5rem; }
+.map-hint, .map-loading, .map-empty {
+  position: absolute; left: 50%; transform: translateX(-50%); z-index: 1000;
+  background: #fff; border: 1px solid #000; padding: .25rem .25rem .25rem .75rem;
+  max-width: calc(100% - 8rem);
+}
+.map-hint { bottom: 3.5rem; display: flex; align-items: center; gap: .25rem; }
+.map-hint[hidden], .map-loading[hidden], .map-empty[hidden] { display: none; }
+.map-loading { top: .75rem; padding: .5rem .75rem; font-weight: 700; }
+.map-empty { top: 40%; padding: 1rem; text-align: center; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+}

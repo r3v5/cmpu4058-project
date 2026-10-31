@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Map · AI Data Center Map{% endblock %}
+{% block head %}
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"
+        integrity="sha384-pmjIAcz2bAn0xukfxADbZIb3t8oRT9Sv0rvO+BR5Csr6Dhqq+nZs59P0pPKQJkEV" crossorigin="anonymous">
+{% endblock %}
+{% block body_class %}map-body{% endblock %}
+{% block main_class %}map-main{% endblock %}
+{% block nav_toggle %}
+  <button class="btn btn-outline-dark d-lg-none me-2" type="button" data-bs-toggle="offcanvas"
+          data-bs-target="#sidebar" aria-controls="sidebar" aria-label="Open sites list and nearby search">
+    <span aria-hidden="true">☰</span>
+  </button>
+{% endblock %}
+{% block content %}
+<h1 class="visually-hidden">Map of AI data centers</h1>
+<aside id="sidebar" class="offcanvas-lg offcanvas-start" tabindex="-1" aria-labelledby="sidebar-title">
+  <div class="offcanvas-header">
+    <h2 id="sidebar-title" class="offcanvas-title h5 text-uppercase">Explore sites</h2>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#sidebar" aria-label="Close panel"></button>
+  </div>
+  <div class="offcanvas-body">
+    <ul class="nav nav-tabs nav-fill mb-3" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="tab-sites" data-bs-toggle="tab" data-bs-target="#pane-sites"
+                type="button" role="tab" aria-controls="pane-sites" aria-selected="true">Sites list</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-nearby" data-bs-toggle="tab" data-bs-target="#pane-nearby"
+                type="button" role="tab" aria-controls="pane-nearby" aria-selected="false">Nearby</button>
+      </li>
+    </ul>
+
+    <div class="tab-content">
+      <section class="tab-pane show active" id="pane-sites" role="tabpanel" aria-labelledby="tab-sites" tabindex="0">
+        <p class="text-secondary small">Sites that match the search and filters. Select one to show it on the map.</p>
+        <ul class="site-list" id="sites-list"></ul>
+      </section>
+
+      <section class="tab-pane" id="pane-nearby" role="tabpanel" aria-labelledby="tab-nearby" tabindex="0">
+        <p id="query-point">No point chosen yet. Click the map, or search around the map centre.</p>
+        <button class="btn btn-outline-dark w-100 mb-3" type="button" id="use-centre">Use map centre</button>
+        <div class="d-grid gap-2">
+          <button class="btn btn-dark" type="button" id="run-nearest" disabled>Nearest 5 sites</button>
+          <form class="within-row" id="within-form" novalidate>
+            <div class="flex-grow-1">
+              <label class="form-label mb-1" for="within-km">Within (km)</label>
+              <input class="form-control" id="within-km" type="number" min="1" max="5000" step="any" value="500"
+                     inputmode="decimal" aria-describedby="within-help within-error">
+            </div>
+            <button class="btn btn-dark" type="submit" id="run-within" disabled>Search</button>
+          </form>
+          <div class="form-text mt-0" id="within-help">From 1 to 5000 km.</div>
+          <div class="field-error" id="within-error" hidden></div>
+          <button class="btn btn-outline-dark" type="button" id="run-country" disabled>Country here</button>
+        </div>
+        <div class="mt-3" id="spatial-results" aria-live="polite">
+          <h3 class="h6 text-uppercase" id="results-heading" hidden></h3>
+          <ol class="site-list" id="results"></ol>
+        </div>
+      </section>
+    </div>
+  </div>
+</aside>
+
+<div class="map-column">
+  <form class="map-toolbar" id="filters" role="search" aria-label="Search and filter sites" novalidate>
+    <div class="toolbar-search">
+      <label class="visually-hidden" for="f-search">Search sites, owners, locations</label>
+      <svg class="search-icon" aria-hidden="true" viewBox="0 0 16 16" width="16" height="16">
+        <circle cx="6.5" cy="6.5" r="5" fill="none" stroke="currentColor" stroke-width="1.5"/>
+        <line x1="10.2" y1="10.2" x2="15" y2="15" stroke="currentColor" stroke-width="1.5"/>
+      </svg>
+      <input class="form-control" id="f-search" name="search" type="search" autocomplete="off"
+             placeholder="Search sites, owners, locations…">
+    </div>
+
+    <div class="dropdown">
+      <button class="btn btn-outline-dark dropdown-toggle toolbar-button" type="button" id="filter-toggle"
+              data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+        <svg aria-hidden="true" viewBox="0 0 16 16" width="16" height="16">
+          <path d="M1 3h14M4 8h8M6.5 13h3" stroke="currentColor" stroke-width="1.5" fill="none"/>
+        </svg>
+        Filter <span id="filter-count" class="filter-count"></span>
+      </button>
+      <div class="dropdown-menu filter-menu p-3" aria-labelledby="filter-toggle">
+        <div class="mb-3">
+          <label class="form-label" for="f-owner">Owner</label>
+          <select class="form-select" id="f-owner" name="owner" multiple size="6" aria-describedby="f-owner-help">
+            {% for owner in owners %}<option value="{{ owner }}">{{ owner }}</option>{% endfor %}
+          </select>
+          <div class="form-text" id="f-owner-help">None selected means all owners. Hold Ctrl or ⌘ to pick several.</div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="f-country">Country</label>
+          <select class="form-select" id="f-country" name="country">
+            <option value="">All countries</option>
+            {% for country in countries %}<option value="{{ country }}">{{ country }}</option>{% endfor %}
+          </select>
+        </div>
+        <fieldset class="mb-3">
+          <legend class="form-label fs-6">IT Power (MW)</legend>
+          <div class="range-row">
+            <label class="visually-hidden" for="f-mw-min">Minimum power (MW)</label>
+            <input class="form-control" id="f-mw-min" name="mw_min" type="number" min="0" step="any"
+                   inputmode="decimal" placeholder="min" aria-describedby="mw-error">
+            <span aria-hidden="true">–</span>
+            <label class="visually-hidden" for="f-mw-max">Maximum power (MW)</label>
+            <input class="form-control" id="f-mw-max" name="mw_max" type="number" min="0" step="any"
+                   inputmode="decimal" placeholder="max" aria-describedby="mw-error">
+          </div>
+          <div class="field-error" id="mw-error" hidden></div>
+        </fieldset>
+        <fieldset class="mb-3">
+          <legend class="form-label fs-6">Capital cost ($B)</legend>
+          <div class="range-row">
+            <label class="visually-hidden" for="f-cost-min">Minimum capital cost ($B)</label>
+            <input class="form-control" id="f-cost-min" name="cost_min" type="number" min="0" step="any"
+                   inputmode="decimal" placeholder="min" aria-describedby="cost-error">
+            <span aria-hidden="true">–</span>
+            <label class="visually-hidden" for="f-cost-max">Maximum capital cost ($B)</label>
+            <input class="form-control" id="f-cost-max" name="cost_max" type="number" min="0" step="any"
+                   inputmode="decimal" placeholder="max" aria-describedby="cost-error">
+          </div>
+          <div class="field-error" id="cost-error" hidden></div>
+        </fieldset>
+        <div class="form-check in-view-check mb-3">
+          <input class="form-check-input" type="checkbox" id="f-in-view" aria-describedby="f-in-view-help">
+          <label class="form-check-label" for="f-in-view">Only sites in map view</label>
+          <div class="form-text" id="f-in-view-help">The list updates as you pan or zoom.</div>
+        </div>
+        <div class="d-flex gap-2">
+          <button class="btn btn-dark flex-grow-1" type="submit">Apply</button>
+          <button class="btn btn-outline-dark" type="button" id="reset-filters">Reset</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="size-toggle" role="radiogroup" aria-label="Size circles by">
+      <input class="btn-check" type="radio" name="size" id="size-mw" value="power_mw" checked>
+      <label class="btn btn-size" for="size-mw">IT Power (MW)</label>
+      <input class="btn-check" type="radio" name="size" id="size-cost" value="capital_cost_busd">
+      <label class="btn btn-size" for="size-cost">Capital cost ($B)</label>
+    </div>
+
+    <p class="toolbar-count mb-0" id="result-count" aria-live="polite">{{ total }} results</p>
+  </form>
+
+  <div class="map-wrap">
+    <div class="map-alerts" id="alerts"></div>
+    <div id="map" role="region" aria-label="Map of AI data centers"></div>
+    <div class="map-hint" id="hint" hidden>
+      <span>Click the map to search nearby.</span>
+      <button type="button" class="btn-close" id="hint-close" aria-label="Dismiss hint"></button>
+    </div>
+    <div class="map-loading" id="loading" role="status" hidden>Loading…</div>
+    <div class="map-empty" id="empty" hidden>
+      <p class="mb-2 fw-bold">No sites match this search and these filters.</p>
+      <button type="button" class="btn btn-dark" id="empty-reset">Reset</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"
+          integrity="sha384-eXVCORTRlv4FUUgS/xmOyr66XBVraen8ATNLMESp92FKXLAMiKkerixTiBvXriZr" crossorigin="anonymous"></script>
+  <script src="{% static 'js/map.js' %}"></script>
+{% endblock %}

@@ -3,7 +3,7 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework.authtoken.views import obtain_auth_token
 from rest_framework.routers import DefaultRouter
 
-from . import api
+from . import api, views
 
 app_name = "ai_datacenters"
 
@@ -11,6 +11,8 @@ router = DefaultRouter()
 router.register("datacenters", api.DataCenterViewSet, basename="datacenter")
 
 urlpatterns = [
+    path("", views.MapView.as_view(), name="map"),
+    path("accounts/signup/", views.SignupView.as_view(), name="signup"),
     path("api/countries/at/", api.country_at, name="country-at"),
     path("api/countries/stats/", api.country_stats, name="country-stats"),
     path("api/filters/", api.filter_options, name="filter-options"),
