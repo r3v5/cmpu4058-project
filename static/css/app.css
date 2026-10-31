@@ -1,7 +1,8 @@
 /* Black and white theme on top of Bootstrap 5. Greys only for borders (#ddd)
-   and muted text (#555, 7.5:1 on white). The one colour is the teal of the
-   site circles, as on the Epoch AI map; a black outline keeps their edges
-   visible (WCAG 1.4.11). */
+   and muted text (#555, 7.5:1 on white). The one colour is the navy of the
+   site circles and clusters (#13294b: 13:1 against the light map, WCAG
+   1.4.11); a white outline separates overlapping circles and keeps them
+   visible on the darkest choropleth shade. Cluster counts are white (14:1). */
 
 :root,
 [data-bs-theme="light"] {
@@ -194,7 +195,8 @@ ol.site-list button::before { content: counter(result) "  "; font-weight: 700; }
 
 .cluster-icon {
   display: flex; align-items: center; justify-content: center;
-  background: #4fd1b5; color: #000; border: 1px solid #000; border-radius: 50%;
+  background: #13294b; color: #fff; border: 2px solid #fff; border-radius: 50%;
+  box-shadow: 0 0 0 1px #13294b;
   font-weight: 700; font-size: .8rem;
 }
 .value-tooltip {

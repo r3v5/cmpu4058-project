@@ -173,7 +173,7 @@
     capital_cost_busd: { title: "Capital cost ($B)", legend: [40, 16, 4], format: fmtCost, short: (v) => `$${v}B` },
     h100e: { title: "H100 equivalents", legend: [1e6, 4e5, 1e5], format: fmtH100e, short: shortCount },
   };
-  const TEAL = "#4fd1b5";
+  const NAVY = "#13294b";
   const sizeMetric = () => filterForm.elements.size.value;
 
   function radiusFor(value, metric = sizeMetric()) {
@@ -185,7 +185,7 @@
     // bubblingMouseEvents: false, so tapping a site opens its popup and
     // does not also count as a tap on the map (which picks a search point).
     return {
-      radius: radiusFor(props[sizeMetric()]), color: "#000", weight: 1, fillColor: TEAL, fillOpacity: 0.9,
+      radius: radiusFor(props[sizeMetric()]), color: "#fff", weight: 1, fillColor: NAVY, fillOpacity: 0.9,
       bubblingMouseEvents: false,
     };
   }
