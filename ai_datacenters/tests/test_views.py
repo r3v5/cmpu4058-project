@@ -120,3 +120,14 @@ def test_size_toggles_have_short_labels_for_phones(logged_in):
     # Phones show the short label; screen readers always get the full one.
     for long, short in (("IT Power (MW)", "MW"), ("Capital cost ($B)", "$B")):
         assert f'<span class="label-long">{long}</span><span class="label-short" aria-hidden="true">{short}</span>' in html
+
+
+def test_nearby_panel_can_clear_the_search_point(logged_in):
+    html = logged_in.get("/").content.decode()
+    # Hidden until a point is chosen; undoes the point and its results.
+    assert '<button class="btn btn-outline-dark" type="button" id="clear-point" hidden>' in html
+
+
+def test_search_box_has_a_keyboard_shortcut(logged_in):
+    html = logged_in.get("/").content.decode()
+    assert 'aria-keyshortcuts="/"' in html
