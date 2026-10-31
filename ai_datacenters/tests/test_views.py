@@ -100,3 +100,16 @@ def test_logout_via_post_ends_session(logged_in):
     response = logged_in.post("/accounts/logout/")
     assert response.status_code == 302
     assert logged_in.get("/").status_code == 302
+
+
+def test_map_page_explains_each_measure(logged_in):
+    html = logged_in.get("/").content.decode()
+    # One button next to the size toggles opens a panel with every measure.
+    assert 'aria-label="What do these measures mean?"' in html
+    assert "can draw at once" in html  # IT power
+    assert "build and equip" in html  # capital cost
+    assert "Nvidia H100" in html  # H100 equivalents
+    # Each range in the filter menu has its own hint, hidden until opened.
+    for key in ("power_mw", "capital_cost_busd", "h100e"):
+        assert f'aria-controls="help-{key}"' in html
+        assert f'id="help-{key}" hidden' in html
