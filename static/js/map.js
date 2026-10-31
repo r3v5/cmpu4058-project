@@ -825,11 +825,13 @@
 
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") map.closePopup();
-    // "/" jumps to the search box, unless the user is already typing.
-    const typing = event.target.closest("input, select, textarea, [contenteditable]");
-    if (event.key === "/" && !typing && !event.ctrlKey && !event.metaKey && !event.altKey) {
+    // Ctrl+K (⌘K on a Mac) jumps to the search box. A shortcut with a
+    // modifier key cannot be set off by speech input or a stray key press
+    // (WCAG 2.1.4), unlike a single "/".
+    if (event.key.toLowerCase() === "k" && (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey) {
       event.preventDefault();
       $("#f-search").focus();
+      $("#f-search").select();
     }
   });
 
