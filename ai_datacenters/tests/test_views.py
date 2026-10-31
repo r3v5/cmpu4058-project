@@ -131,3 +131,8 @@ def test_nearby_panel_can_clear_the_search_point(logged_in):
 def test_search_box_has_a_keyboard_shortcut(logged_in):
     html = logged_in.get("/").content.decode()
     assert 'aria-keyshortcuts="/"' in html
+
+
+def test_radius_button_names_the_search(logged_in):
+    html = logged_in.get("/").content.decode()
+    assert 'id="run-within" disabled>Find within 500 km</button>' in html
