@@ -2,6 +2,7 @@
 
 from django.contrib.auth import login
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.http import HttpRequest
 from django.shortcuts import redirect
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, TemplateView
@@ -35,12 +36,12 @@ class SignupView(CreateView):
     template_name = "registration/signup.html"
     success_url = reverse_lazy("ai_datacenters:map")
 
-    def dispatch(self, request, *args, **kwargs):
+    def dispatch(self, request: HttpRequest, *args, **kwargs):
         if request.user.is_authenticated:
             return redirect(self.success_url)
         return super().dispatch(request, *args, **kwargs)
 
-    def form_valid(self, form):
+    def form_valid(self, form: SignupForm):
         response = super().form_valid(form)
         login(self.request, self.object)
         return response

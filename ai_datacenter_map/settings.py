@@ -12,7 +12,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-def env_list(name, default=""):
+def env_list(name: str, default: str = ""):
     """Read a comma-separated environment variable as a list."""
     return [item.strip() for item in os.environ.get(name, default).split(",") if item.strip()]
 

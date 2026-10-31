@@ -1,6 +1,6 @@
 import json
 
-from django.contrib.gis.geos import LineString
+from django.contrib.gis.geos import LineString, Point
 from rest_framework import serializers
 from rest_framework_gis.serializers import GeoFeatureModelSerializer
 
@@ -20,7 +20,7 @@ class DataCenterSerializer(GeoFeatureModelSerializer):
             "address", "geocode_precision", "nearest_link", "nearest_km",
         ]
 
-    def validate_location(self, value):
+    def validate_location(self, value: Point):
         if not (-180 <= value.x <= 180 and -90 <= value.y <= 90):
             raise serializers.ValidationError("Longitude must be within ±180 and latitude within ±90.")
         return value
@@ -35,10 +35,10 @@ class NearestDataCenterSerializer(DataCenterSerializer):
     class Meta(DataCenterSerializer.Meta):
         fields = DataCenterSerializer.Meta.fields + ["distance_km", "link"]
 
-    def get_distance_km(self, obj):
+    def get_distance_km(self, obj: DataCenter):
         return round(obj.distance.km, 2)
 
-    def get_link(self, obj):
+    def get_link(self, obj: DataCenter):
         line = LineString(self.context["point"], obj.location, srid=4326)
         return json.loads(line.geojson)
 
@@ -70,7 +70,7 @@ class NearestQuerySerializer(PointQuerySerializer):
 class WithinQuerySerializer(PointQuerySerializer):
     km = serializers.FloatField(max_value=5000)
 
-    def validate_km(self, value):
+    def validate_km(self, value: float):
         if value <= 0:
             raise serializers.ValidationError("Radius must be greater than 0 km.")
         return value

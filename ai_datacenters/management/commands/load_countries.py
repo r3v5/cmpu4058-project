@@ -3,7 +3,7 @@
 from django.conf import settings
 from django.contrib.gis.gdal import DataSource
 from django.contrib.gis.geos import MultiPolygon
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandParser
 from django.db import transaction
 
 from ai_datacenters.models import Country
@@ -12,7 +12,7 @@ from ai_datacenters.models import Country
 class Command(BaseCommand):
     help = "Load country polygons from GeoJSON (skipped if countries exist)."
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: CommandParser):
         parser.add_argument("path", nargs="?", default=str(settings.BASE_DIR / "data" / "countries.geojson"))
 
     def handle(self, *args, **options):

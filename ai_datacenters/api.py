@@ -6,6 +6,7 @@ from django.contrib.gis.geos import Point
 from django.db.models import Max, Min
 from rest_framework import status, viewsets
 from rest_framework.decorators import action, api_view
+from rest_framework.request import Request
 from rest_framework.response import Response
 
 from . import spatial
@@ -22,7 +23,7 @@ from .serializers import (
 )
 
 
-def query_point(serializer_class, request):
+def query_point(serializer_class: type[PointQuerySerializer], request: Request):
     """Validate query parameters; a bad value raises a 400 with field errors."""
     params = serializer_class(data=request.query_params)
     params.is_valid(raise_exception=True)
@@ -39,14 +40,14 @@ class DataCenterViewSet(viewsets.ModelViewSet):
     filterset_class = DataCenterFilter
 
     @action(detail=False)
-    def nearest(self, request):
+    def nearest(self, request: Request):
         """?lat=&lon=&n= — the n nearest sites, each with a line from the point."""
         point, params = query_point(NearestQuerySerializer, request)
         sites = spatial.nearest_datacenters(point, params["n"])
         return Response(NearestDataCenterSerializer(sites, many=True, context={"point": point}).data)
 
     @action(detail=False)
-    def within(self, request):
+    def within(self, request: Request):
         """?lat=&lon=&km= — sites within the radius, plus the buffer polygon."""
         point, params = query_point(WithinQuerySerializer, request)
         sites = spatial.datacenters_within(point, params["km"])
@@ -58,7 +59,7 @@ class DataCenterViewSet(viewsets.ModelViewSet):
 
 
 @api_view(["GET"])
-def country_at(request):
+def country_at(request: Request):
     """?lat=&lon= — the country containing the point and the sites inside it."""
     point, _ = query_point(PointQuerySerializer, request)
     country = spatial.country_at(point)
@@ -74,13 +75,13 @@ def country_at(request):
 
 
 @api_view(["GET"])
-def country_stats(request):
+def country_stats(request: Request):
     """Countries with at least one site and their totals (for the choropleth)."""
     return Response(CountrySummarySerializer(spatial.country_stats(), many=True).data)
 
 
 @api_view(["GET"])
-def filter_options(request):
+def filter_options(request: Request):
     """Values for the filter form: owners, countries and MW/cost ranges."""
     ranges = DataCenter.objects.aggregate(
         mw_min=Min("power_mw"), mw_max=Max("power_mw"),

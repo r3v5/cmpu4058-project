@@ -8,6 +8,8 @@ the real Nominatim API.
 import csv
 import re
 import time
+from collections.abc import Callable
+from pathlib import Path
 
 import requests
 
@@ -19,17 +21,21 @@ REQUEST_SPACING_S = 1.1
 _TAG = re.compile(r"\s*#\w+")
 _US_ZIP = re.compile(r"\b(\d{5})\b(?!.*\b\d{5}\b)")
 
+# Nominatim query parameters and the (lat, lon) of a hit.
+Params = dict[str, str]
+LatLon = tuple[float, float]
 
-def clean_tag(value):
+
+def clean_tag(value: str | None):
     """Drop Epoch AI confidence tags: 'Google #confident' -> 'Google'."""
     return _TAG.sub("", value or "").strip()
 
 
-def clean_owner(value):
+def clean_owner(value: str | None):
     return clean_tag(value) or "Unknown"
 
 
-def candidates(row):
+def candidates(row: dict[str, str]):
     """Yield (precision, Nominatim params) from most to least precise.
 
     Order: full address, address without the street, US ZIP code,
@@ -50,13 +56,17 @@ def candidates(row):
     yield "country", {"q": country}
 
 
-def load_overrides(path):
+def load_overrides(path: str | Path):
     """Read manual coordinates keyed by site name."""
     with open(path, newline="", encoding="utf-8") as f:
         return {r["name"]: (float(r["latitude"]), float(r["longitude"])) for r in csv.DictReader(f)}
 
 
-def geocode_row(row, search, overrides):
+def geocode_row(
+    row: dict[str, str],
+    search: Callable[[Params], LatLon | None],
+    overrides: dict[str, LatLon],
+):
     """Return (lat, lon, precision) for a row, or None when nothing matched.
 
     A manual override wins. Otherwise the first candidate that ``search``
@@ -72,7 +82,7 @@ def geocode_row(row, search, overrides):
     return None
 
 
-def nominatim_search(params, session=None):
+def nominatim_search(params: Params, session: requests.Session | None = None):
     """Query Nominatim once; return (lat, lon) of the best hit or None."""
     session = session or requests
     time.sleep(REQUEST_SPACING_S)

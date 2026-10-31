@@ -9,7 +9,7 @@ import csv
 from django.conf import settings
 from django.contrib.gis.geos import Point
 from django.core.exceptions import ValidationError
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.db import transaction
 
 from ai_datacenters.models import DataCenter
@@ -18,7 +18,7 @@ from ai_datacenters.models import DataCenter
 class Command(BaseCommand):
     help = "Import geocoded AI data centers from CSV (update or create by name)."
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: CommandParser):
         parser.add_argument(
             "path", nargs="?", default=str(settings.BASE_DIR / "data" / "datacenters_geocoded.csv")
         )
@@ -46,7 +46,7 @@ class Command(BaseCommand):
             self.stderr.write(self.style.WARNING(f"Not inside any country polygon: {', '.join(outside)}"))
         self.stdout.write(self.style.SUCCESS(f"Imported {len(rows)} data centers."))
 
-    def import_row(self, line, row):
+    def import_row(self, line: int, row: dict[str, str]):
         name = row["name"].strip()
         try:
             location = Point(float(row["longitude"]), float(row["latitude"]), srid=4326)

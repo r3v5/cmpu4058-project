@@ -4,10 +4,15 @@ from django.contrib.gis.db.models.functions import Distance
 from django.contrib.gis.gdal import OGRGeometry, SpatialReference
 from django.contrib.gis.geos import LineString, Point, Polygon
 from django.contrib.gis.measure import D
-from django.db.models import Count, F, FloatField, Func, IntegerField, OuterRef, Subquery, Sum
+from django.db.models import (
+    Count, Expression, F, Field, FloatField, Func, IntegerField, OuterRef, QuerySet, Subquery, Sum,
+)
 from django.db.models.functions import Coalesce
 
 from .models import Country, DataCenter
+
+# (min_lon, min_lat, max_lon, max_lat)
+BBox = tuple[float, float, float, float]
 
 
 def recompute_nearest_links():
@@ -37,7 +42,7 @@ def recompute_nearest_links():
         DataCenter.objects.filter(pk=site.pk).update(nearest_link=link, nearest_km=km)
 
 
-def nearest_datacenters(point, n):
+def nearest_datacenters(point: Point, n: int):
     """Nearest neighbours: the n sites closest to a point, closest first."""
     return (
         DataCenter.objects.select_related("country")
@@ -46,7 +51,7 @@ def nearest_datacenters(point, n):
     )
 
 
-def datacenters_within(point, km):
+def datacenters_within(point: Point, km: float):
     """Radius search: sites within km of a point, closest first."""
     return (
         DataCenter.objects.select_related("country")
@@ -56,7 +61,7 @@ def datacenters_within(point, km):
     )
 
 
-def in_bbox(queryset, bbox):
+def in_bbox(queryset: QuerySet[DataCenter], bbox: BBox):
     """Bounding box: sites inside a (min_lon, min_lat, max_lon, max_lat) box.
 
     Polygon.from_bbox + __within. The GiST index on
@@ -66,7 +71,7 @@ def in_bbox(queryset, bbox):
     return queryset.filter(location__within=Polygon.from_bbox(bbox))
 
 
-def buffer_polygon(point, km):
+def buffer_polygon(point: Point, km: float):
     """Buffer: a circle of radius km around a point, as a lon/lat Polygon.
 
     Buffering in degrees would give an oval that is wrong away from the
@@ -96,7 +101,7 @@ def buffer_polygon(point, km):
     return Polygon(ring, srid=4326)
 
 
-def _polar_cap(vertices, pole):
+def _polar_cap(vertices: list[tuple[float, float]], pole: float):
     """Turn a ring that winds around a pole into a closed lon/lat polygon."""
     edge = sorted(((x + 180) % 360 - 180, y) for x, y in vertices)
     # Latitude where the ring crosses the date line, between the last and
@@ -107,17 +112,17 @@ def _polar_cap(vertices, pole):
     return [(-180, seam_y), *edge, (180, seam_y), (180, pole), (-180, pole), (-180, seam_y)]
 
 
-def country_at(point):
+def country_at(point: Point):
     """Containment: the country polygon containing a point, or None."""
     return Country.objects.filter(geom__contains=point).first()
 
 
-def datacenters_in(country):
+def datacenters_in(country: Country):
     """Containment: sites located inside a country polygon."""
     return DataCenter.objects.select_related("country").filter(location__within=country.geom)
 
 
-def _sites_inside(expression, output_field):
+def _sites_inside(expression: Expression, output_field: Field):
     """A subquery aggregating the sites inside the outer country's polygon.
 
     ``Func`` rather than ``Count``/``Sum`` so Django does not add GROUP BY:
@@ -147,7 +152,7 @@ def country_stats():
     )
 
 
-def country_totals(sites):
+def country_totals(sites: QuerySet[DataCenter]):
     """Count, MW and cost of a queryset of sites."""
     return sites.aggregate(
         site_count=Count("id"),

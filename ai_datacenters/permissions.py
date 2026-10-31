@@ -1,10 +1,12 @@
 from rest_framework.permissions import SAFE_METHODS, BasePermission
+from rest_framework.request import Request
+from rest_framework.views import APIView
 
 
 class IsStaffOrReadOnly(BasePermission):
     """Any logged-in user may read; only staff may create, edit or delete."""
 
-    def has_permission(self, request, view):
+    def has_permission(self, request: Request, view: APIView):
         user = request.user
         if not (user and user.is_authenticated):
             return False

@@ -1,7 +1,7 @@
 import math
 
 from django import forms
-from django.db.models import Q
+from django.db.models import Q, QuerySet
 from django_filters import rest_framework as filters
 
 from . import spatial
@@ -26,7 +26,7 @@ def country_choices():
 class BBoxField(forms.CharField):
     """Parse "min_lon,min_lat,max_lon,max_lat" into four checked floats."""
 
-    def clean(self, value):
+    def clean(self, value: str | None):
         value = super().clean(value)
         if not value:
             return None
@@ -74,11 +74,11 @@ class DataCenterFilter(filters.FilterSet):
         model = DataCenter
         fields = ["owner", "country", "mw_min", "mw_max", "cost_min", "cost_max", "search", "bbox"]
 
-    def filter_search(self, queryset, name, value):
+    def filter_search(self, queryset: QuerySet[DataCenter], name: str, value: str):
         matches = Q()
         for field in self.SEARCH_FIELDS:
             matches |= Q(**{f"{field}__icontains": value.strip()})
         return queryset.filter(matches)
 
-    def filter_bbox(self, queryset, name, value):
+    def filter_bbox(self, queryset: QuerySet[DataCenter], name: str, value: spatial.BBox):
         return spatial.in_bbox(queryset, value)

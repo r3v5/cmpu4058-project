@@ -9,7 +9,7 @@ import io
 
 import requests
 from django.conf import settings
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandParser
 
 from ai_datacenters.geocoding import clean_owner, clean_tag, geocode_row, load_overrides, nominatim_search
 
@@ -23,7 +23,7 @@ OUTPUT_FIELDS = [
 class Command(BaseCommand):
     help = "Geocode the Epoch AI data center CSV with Nominatim (needs network)."
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: CommandParser):
         parser.add_argument("--source", default=EPOCH_CSV_URL, help="URL or path of the Epoch AI CSV.")
         parser.add_argument("--overrides", default=str(settings.BASE_DIR / "data" / "geocode_overrides.csv"))
         parser.add_argument("--out", default=str(settings.BASE_DIR / "data" / "datacenters_geocoded.csv"))
@@ -68,7 +68,7 @@ class Command(BaseCommand):
                 + "; ".join(unplaced)
             ))
 
-    def read_source(self, source):
+    def read_source(self, source: str):
         if source.startswith(("http://", "https://")):
             response = requests.get(source, timeout=30)
             response.raise_for_status()
