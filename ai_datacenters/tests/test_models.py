@@ -13,7 +13,7 @@ def test_datacenter_saves_with_point(make_dc):
     assert dc.location.srid == 4326
 
 
-@pytest.mark.parametrize("field", ["power_mw", "capital_cost_busd"])
+@pytest.mark.parametrize("field", ["power_mw", "capital_cost_busd", "h100e"])
 def test_negative_values_fail_validation(make_dc, field):
     dc = make_dc("Alpha", 1, 1)
     setattr(dc, field, -1)

@@ -34,6 +34,7 @@ def make_dc(db):
             "owner": "Google",
             "power_mw": 100,
             "capital_cost_busd": 1.0,
+            "h100e": 50000,
             "geocode_precision": DataCenter.Precision.ADDRESS,
         }
         defaults.update(fields)

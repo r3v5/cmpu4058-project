@@ -7,10 +7,10 @@ URL = "/api/datacenters/"
 
 @pytest.fixture
 def sites(testland, make_dc):
-    make_dc("Alpha", 1, 1, owner="Google", power_mw=100, capital_cost_busd=1.0)
-    make_dc("Beta", 2, 2, owner="Meta", power_mw=200, capital_cost_busd=2.0)
-    make_dc("Gamma", 3, 3, owner="Amazon", power_mw=300, capital_cost_busd=3.0)
-    make_dc("Faraway", 50, 50, owner="Google", power_mw=400, capital_cost_busd=4.0)
+    make_dc("Alpha", 1, 1, owner="Google", power_mw=100, capital_cost_busd=1.0, h100e=10000)
+    make_dc("Beta", 2, 2, owner="Meta", power_mw=200, capital_cost_busd=2.0, h100e=20000)
+    make_dc("Gamma", 3, 3, owner="Amazon", power_mw=300, capital_cost_busd=3.0, h100e=30000)
+    make_dc("Faraway", 50, 50, owner="Google", power_mw=400, capital_cost_busd=4.0, h100e=40000)
 
 
 def names(response):
@@ -26,6 +26,7 @@ def test_list_is_geojson_feature_collection(demo_client, sites):
     assert alpha["geometry"] == {"type": "Point", "coordinates": [1.0, 1.0]}
     assert alpha["properties"]["country"] == "Testland"
     assert alpha["properties"]["owner"] == "Google"
+    assert alpha["properties"]["h100e"] == 10000
     # The stored nearest-site line is included for the "cluster links" layer.
     assert alpha["properties"]["nearest_link"]["type"] == "LineString"
     assert alpha["properties"]["nearest_km"] > 0
@@ -50,6 +51,8 @@ def test_filter_by_country(demo_client, sites):
         ({"mw_max": 200}, ["Alpha", "Beta"]),
         ({"cost_min": 3}, ["Faraway", "Gamma"]),
         ({"cost_max": 3}, ["Alpha", "Beta", "Gamma"]),
+        ({"h100e_min": 20000}, ["Beta", "Faraway", "Gamma"]),
+        ({"h100e_max": 20000}, ["Alpha", "Beta"]),
     ],
 )
 def test_range_boundaries_are_inclusive(demo_client, sites, params, expected):
@@ -73,6 +76,7 @@ def test_filter_options(demo_client, sites):
     assert data["countries"] == ["Testland"]
     assert data["power_mw"] == {"min": 100, "max": 400}
     assert data["capital_cost_busd"] == {"min": 1.0, "max": 4.0}
+    assert data["h100e"] == {"min": 10000, "max": 40000}
 
 
 @pytest.mark.parametrize(

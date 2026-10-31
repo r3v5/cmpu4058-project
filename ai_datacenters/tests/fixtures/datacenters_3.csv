@@ -1,4 +1,4 @@
-name,owner,users,country,power_mw,capital_cost_busd,address,latitude,longitude,geocode_precision
-Alpha,Google,"Anthropic, Cursor",Testland,946,35.8,1 Main St,1.0,1.0,address
-Beta,Meta,,Testland,300,10.5,2 Main St,1.0,1.1,city
-Gamma,Unknown,,Nowhere,0,0,,50.0,50.0,manual
+name,owner,users,country,power_mw,capital_cost_busd,h100e,address,latitude,longitude,geocode_precision
+Alpha,Google,"Anthropic, Cursor",Testland,946,35.8,1111672.5,1 Main St,1.0,1.0,address
+Beta,Meta,,Testland,300,10.5,250000,2 Main St,1.0,1.1,city
+Gamma,Unknown,,Nowhere,0,0,0,,50.0,50.0,manual

@@ -29,7 +29,9 @@ def test_map_page_for_logged_in_user(logged_in):
     assert 'id="filters"' in html
     assert 'name="owner"' in html
     assert 'name="search"' in html
-    assert "IT Power (MW)" in html and "Capital cost ($B)" in html  # circle size toggles
+    # circle size toggles
+    assert "IT Power (MW)" in html and "Capital cost ($B)" in html and "H100e" in html
+    assert 'name="h100e_min"' in html and 'name="h100e_max"' in html
     assert "demo" in html  # user name in the navbar
 
 

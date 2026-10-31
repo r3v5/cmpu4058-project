@@ -21,6 +21,7 @@ def test_import_creates_rows_with_points_and_country(testland):
     assert alpha.country == testland
     assert alpha.users == "Anthropic, Cursor"
     assert alpha.power_mw == 946
+    assert alpha.h100e == 1111672.5
     assert alpha.geocode_precision == "address"
     # Unknown country names leave the FK empty instead of failing.
     assert DataCenter.objects.get(name="Gamma").country is None
