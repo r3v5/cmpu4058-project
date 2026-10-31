@@ -260,7 +260,7 @@
       {},
       el(
         "button",
-        { type: "button", onclick: () => showSite(feature) },
+        { type: "button", "data-id": feature.id, onclick: () => showSite(feature) },
         feature.properties.name,
         el("span", { class: "detail" }, detail),
       ),
@@ -412,9 +412,14 @@
     updateFilterCount();
     $("#result-count").textContent = `${sites.length} ${sites.length === 1 ? "result" : "results"}`;
     $("#empty").hidden = sites.length > 0;
+    // A rebuilt list (e.g. "Only sites in map view" after a pan) would drop
+    // keyboard focus to the page: give it back to the same site, or to the
+    // list panel if that site is no longer listed.
+    const focused = document.activeElement.closest("#sites-list button")?.dataset.id;
     $("#sites-list").replaceChildren(
       ...sites.map((f) => siteButton(f, `${f.properties.owner} · ${siteMW(f.properties)}`)),
     );
+    if (focused) ($(`#sites-list button[data-id="${focused}"]`) || $("#pane-sites")).focus();
     if (linksOn()) drawLinks();
     if (fit && sites.length) map.fitBounds(cluster.getBounds(), fitOptions);
   }
