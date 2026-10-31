@@ -9,8 +9,8 @@ from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 
 from . import spatial
-from .filters import DataCenterFilter
-from .models import Country, DataCenter
+from .filters import DataCenterFilter, country_choices, owner_choices
+from .models import DataCenter
 from .permissions import IsStaffOrReadOnly
 from .serializers import (
     CountrySummarySerializer,
@@ -87,11 +87,8 @@ def filter_options(request):
         cost_min=Min("capital_cost_busd"), cost_max=Max("capital_cost_busd"),
     )
     return Response({
-        "owners": list(DataCenter.objects.order_by("owner").values_list("owner", flat=True).distinct()),
-        "countries": list(
-            Country.objects.filter(datacenters__isnull=False)
-            .order_by("name").values_list("name", flat=True).distinct()
-        ),
+        "owners": list(owner_choices()),
+        "countries": list(country_choices()),
         "power_mw": {"min": ranges["mw_min"], "max": ranges["mw_max"]},
         "capital_cost_busd": {"min": ranges["cost_min"], "max": ranges["cost_max"]},
     })

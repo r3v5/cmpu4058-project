@@ -56,6 +56,16 @@ def datacenters_within(point, km):
     )
 
 
+def in_bbox(queryset, bbox):
+    """Bounding box: sites inside a (min_lon, min_lat, max_lon, max_lat) box.
+
+    Polygon.from_bbox + __within. The GiST index on
+    location makes this a fast index lookup, which is what the map needs to
+    show only the sites in the current view.
+    """
+    return queryset.filter(location__within=Polygon.from_bbox(bbox))
+
+
 def buffer_polygon(point, km):
     """Buffer: a circle of radius km around a point, as a lon/lat Polygon.
 
