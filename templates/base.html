@@ -15,7 +15,7 @@
     <nav class="navbar px-3 py-1" aria-label="Main">
       {% block nav_toggle %}{% endblock %}
       <a class="navbar-brand fw-bold text-uppercase me-auto" href="{% url 'ai_datacenters:map' %}">
-        <span class="d-sm-none">AI DC Map</span><span class="d-none d-sm-inline">AI Data Center Map</span>
+        <span class="d-sm-none">AI Data Centers</span><span class="d-none d-sm-inline">AI Data Center Map</span>
       </a>
       <div class="d-flex align-items-center gap-2">
         {% if user.is_authenticated %}

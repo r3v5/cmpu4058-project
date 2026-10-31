@@ -99,13 +99,18 @@
   /* Portrait phones: search on its own row, then Filter, size toggles and ⓘ. */
   .toolbar-search { flex-basis: 100%; }
 }
+@media (max-width: 575.98px) {
+  /* Phones: "AI DATA CENTERS" on two short lines, so the navbar stays one
+     row next to Admin and Log out. */
+  .app-header .navbar { flex-wrap: nowrap; }
+  .app-header .navbar-brand { white-space: normal; max-width: 5.5rem; font-size: .95rem; line-height: 1.1; padding-block: 0; }
+  .app-header .btn-sm { white-space: nowrap; }
+}
 @media (max-width: 359.98px) {
-  /* Very narrow phones (old foldables): keep the navbar on one row. */
-  .app-header .navbar { padding-inline: .5rem !important; flex-wrap: nowrap; }
-  .app-header .navbar-brand {
-    font-size: .9rem; margin-right: .25rem; white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis;
-  }
-  .app-header .btn-sm { padding-inline: .5rem; white-space: nowrap; }
+  /* Very narrow phones (old foldables): tighter spacing. */
+  .app-header .navbar { padding-inline: .5rem !important; }
+  .app-header .navbar-brand { margin-right: .25rem; }
+  .app-header .btn-sm { padding-inline: .5rem; }
   .app-header .gap-2 { gap: .25rem !important; }
 }
 @media (max-width: 575.98px), (max-height: 500px) {
