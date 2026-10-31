@@ -113,3 +113,10 @@ def test_map_page_explains_each_measure(logged_in):
     for key in ("power_mw", "capital_cost_busd", "h100e"):
         assert f'aria-controls="help-{key}"' in html
         assert f'id="help-{key}" hidden' in html
+
+
+def test_size_toggles_have_short_labels_for_phones(logged_in):
+    html = logged_in.get("/").content.decode()
+    # Phones show the short label; screen readers always get the full one.
+    for long, short in (("IT Power (MW)", "MW"), ("Capital cost ($B)", "$B")):
+        assert f'<span class="label-long">{long}</span><span class="label-short" aria-hidden="true">{short}</span>' in html
