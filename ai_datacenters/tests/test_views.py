@@ -136,3 +136,9 @@ def test_search_box_has_a_keyboard_shortcut(logged_in):
 def test_radius_button_names_the_search(logged_in):
     html = logged_in.get("/").content.decode()
     assert 'id="run-within" disabled>Find within 500 km</button>' in html
+
+
+def test_map_page_has_a_place_for_active_filter_chips(logged_in):
+    html = logged_in.get("/").content.decode()
+    # Filled by map.js with one removable chip per active filter.
+    assert '<div class="filter-chips" id="filter-chips" role="group" aria-label="Active filters" hidden></div>' in html
