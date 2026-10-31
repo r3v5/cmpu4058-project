@@ -565,13 +565,12 @@
       });
       return button;
     };
-    const km = $("#within-km").value;
     const content = el(
       "div",
       { class: "point-popup" },
       el("h2", { class: "h6" }, "Search near this point"),
       action($("#run-nearest").textContent, true, () => run(nearest)),
-      action(`Within ${km} km`, true, () => {
+      action($("#run-within").textContent, true, () => {
         const radius = validRadius();
         if (radius !== null) run(() => within(radius));
       }),
@@ -599,6 +598,13 @@
   }
   $("#clear-point").addEventListener("click", clearPoint);
 
+  // The radius button names its search, e.g. "Find within 250 km".
+  $("#within-km").addEventListener("input", () => {
+    const km = Number($("#within-km").value);
+    const valid = $("#within-km").value !== "" && Number.isFinite(km) && km > 0 && km <= 5000;
+    $("#run-within").textContent = valid ? `Find within ${km.toLocaleString("en")} km` : "Find within radius";
+    if (valid) validRadius(); // a corrected value clears the old error message
+  });
   $("#run-nearest").addEventListener("click", () => run(nearest));
   $("#run-country").addEventListener("click", () => run(countryHere));
   $("#within-form").addEventListener("submit", (event) => {

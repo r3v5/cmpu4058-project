@@ -149,7 +149,7 @@
 .help-menu dt { font-weight: 700; }
 .help-menu dd { margin-bottom: .5rem; }
 .range-row .form-control { min-width: 0; }
-.within-row { display: flex; align-items: flex-end; gap: .5rem; }
+
 
 .site-list { list-style: none; padding: 0; margin: 0; }
 .site-list li + li { border-top: 1px solid #ddd; }

@@ -45,16 +45,16 @@
         <button class="btn btn-outline-dark w-100 mb-3" type="button" id="use-centre">Use map centre</button>
         <div class="d-grid gap-2">
           <button class="btn btn-dark" type="button" id="run-nearest" disabled>Nearest 5 sites</button>
-          <form class="within-row" id="within-form" novalidate>
-            <div class="flex-grow-1">
-              <label class="form-label mb-1" for="within-km">Within (km)</label>
+          <form class="d-grid gap-2" id="within-form" novalidate>
+            <div>
+              <label class="form-label mb-1" for="within-km">Radius (km)</label>
               <input class="form-control" id="within-km" type="number" min="1" max="5000" step="any" value="500"
                      inputmode="decimal" aria-describedby="within-help within-error">
+              <div class="form-text" id="within-help">From 1 to 5000 km.</div>
+              <div class="field-error" id="within-error" hidden></div>
             </div>
-            <button class="btn btn-dark" type="submit" id="run-within" disabled>Search</button>
+            <button class="btn btn-dark" type="submit" id="run-within" disabled>Find within 500 km</button>
           </form>
-          <div class="form-text mt-0" id="within-help">From 1 to 5000 km.</div>
-          <div class="field-error" id="within-error" hidden></div>
           <button class="btn btn-outline-dark" type="button" id="run-country" disabled>Country here</button>
           <button class="btn btn-outline-dark" type="button" id="clear-point" hidden>Clear point and results</button>
         </div>
