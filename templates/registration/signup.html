@@ -13,6 +13,6 @@
     {% for field in form %}{% include "includes/field.html" %}{% endfor %}
     <button class="btn btn-dark w-100" type="submit">Create account</button>
   </form>
-  <p class="mt-3">Already have an account? <a href="{% url 'login' %}">Sign in →</a></p>
+  <p class="mt-3">Already have an account? <a href="{% url 'login' %}">Sign in <span aria-hidden="true">→</span></a></p>
 </div>
 {% endblock %}
