@@ -216,6 +216,10 @@ ol.site-list button::before { content: counter(result) "  "; font-weight: 700; }
 }
 .map-toggles summary:focus-visible { outline: 2px solid #000; outline-offset: 2px; }
 .map-toggles[open] summary { border-bottom: 1px solid #ddd; }
+/* One-line description under each layer checkbox; the box stays narrow. */
+.map-toggles { max-width: 13rem; }
+.map-toggles .form-check { flex-wrap: wrap; }
+.layer-help { flex: 0 0 100%; padding-left: 1.75rem; margin-top: -.5rem; padding-bottom: .375rem; font-size: .75rem; color: #555; }
 .map-toggles .form-check { display: flex; align-items: center; gap: .5rem; min-height: 44px; margin: 0; padding: 0; }
 .map-toggles .form-check-input { float: none; margin: 0; width: 1.25rem; height: 1.25rem; border-color: #000; }
 .ramp { display: inline-block; width: 1.25rem; height: .9rem; border: 1px solid #000; vertical-align: -2px; margin-right: .25rem; }

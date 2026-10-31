@@ -195,7 +195,7 @@
       ["Owner", props.owner],
       ["Users", props.users || "—"],
       ["Country", props.country || "—"],
-      ["Power", siteMW(props)],
+      ["IT Power", siteMW(props)],
       ["Capital cost", siteCost(props)],
       ["H100 equivalents", siteH100e(props)],
     ];
@@ -270,7 +270,7 @@
   // ---- Filters --------------------------------------------------------
 
   const RANGES = [
-    { min: "mw_min", max: "mw_max", error: "#mw-error", label: "Power" },
+    { min: "mw_min", max: "mw_max", error: "#mw-error", label: "IT Power" },
     { min: "cost_min", max: "cost_max", error: "#cost-error", label: "Capital cost" },
     { min: "h100e_min", max: "h100e_max", error: "#h100e-error", label: "H100e" },
   ];
@@ -464,6 +464,7 @@
     }).addTo(queryLayer);
     $("#query-point").textContent = `Point: ${queryPoint.lat.toFixed(2)}, ${queryPoint.lng.toFixed(2)}`;
     actionButtons.forEach((button) => (button.disabled = false));
+    $("#clear-point").hidden = false;
     bootstrap.Tab.getOrCreateInstance($("#tab-nearby")).show();
     dismissHint();
   }
@@ -584,6 +585,20 @@
     if (!desktop.matches) pointPopup(event.latlng);
   });
   $("#use-centre").addEventListener("click", () => choosePoint(map.getCenter()));
+
+  /** Undo a nearby search: remove the point, its results and their shapes. */
+  function clearPoint() {
+    queryPoint = null;
+    queryLayer.clearLayers();
+    clearResults();
+    map.closePopup();
+    $("#query-point").textContent = "No point chosen yet. Click the map, or search around the map centre.";
+    actionButtons.forEach((button) => (button.disabled = true));
+    $("#clear-point").hidden = true;
+    $("#use-centre").focus(); // the clear button is gone; keep keyboard focus in the panel
+  }
+  $("#clear-point").addEventListener("click", clearPoint);
+
   $("#run-nearest").addEventListener("click", () => run(nearest));
   $("#run-country").addEventListener("click", () => run(countryHere));
   $("#within-form").addEventListener("submit", (event) => {
@@ -650,10 +665,16 @@
     }
   }
 
-  function checkbox(id, text, onChange) {
-    const input = el("input", { class: "form-check-input", type: "checkbox", id });
+  function checkbox(id, text, description, onChange) {
+    const input = el("input", { class: "form-check-input", type: "checkbox", id, "aria-describedby": `${id}-help` });
     input.addEventListener("change", () => run(() => onChange(input.checked)));
-    return el("div", { class: "form-check" }, input, el("label", { class: "form-check-label", for: id }, text));
+    return el(
+      "div",
+      { class: "form-check" },
+      input,
+      el("label", { class: "form-check-label", for: id }, text),
+      el("div", { class: "layer-help", id: `${id}-help` }, description),
+    );
   }
 
   // Layer checkboxes and the size legend share one <details> control. It is
@@ -665,8 +686,8 @@
     "details",
     { class: "map-toggles" },
     el("summary", {}, "Layers"),
-    checkbox("toggle-choropleth", "Choropleth (MW)", toggleChoropleth),
-    checkbox("toggle-links", "Cluster links", toggleLinks),
+    checkbox("toggle-choropleth", "Choropleth (MW)", "Shades countries by total IT power.", toggleChoropleth),
+    checkbox("toggle-links", "Cluster links", "Joins each site to its nearest other site.", toggleLinks),
     sizeLegend,
   );
   layersBox.open = !phone.matches;
@@ -733,6 +754,12 @@
 
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") map.closePopup();
+    // "/" jumps to the search box, unless the user is already typing.
+    const typing = event.target.closest("input, select, textarea, [contenteditable]");
+    if (event.key === "/" && !typing && !event.ctrlKey && !event.metaKey && !event.altKey) {
+      event.preventDefault();
+      $("#f-search").focus();
+    }
   });
 
   run(() => loadSites({ fit: false }));
