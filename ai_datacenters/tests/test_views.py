@@ -130,7 +130,9 @@ def test_nearby_panel_can_clear_the_search_point(logged_in):
 
 def test_search_box_has_a_keyboard_shortcut(logged_in):
     html = logged_in.get("/").content.decode()
-    assert 'aria-keyshortcuts="/"' in html
+    # A modifier key, not a single character: WCAG 2.1.4 Character Key Shortcuts.
+    assert 'aria-keyshortcuts="Control+K Meta+K"' in html
+    assert 'aria-keyshortcuts="/"' not in html
 
 
 def test_radius_button_names_the_search(logged_in):
@@ -142,3 +144,9 @@ def test_map_page_has_a_place_for_active_filter_chips(logged_in):
     html = logged_in.get("/").content.decode()
     # Filled by map.js with one removable chip per active filter.
     assert '<div class="filter-chips" id="filter-chips" role="group" aria-label="Active filters" hidden></div>' in html
+
+
+@pytest.mark.parametrize("url", ["/accounts/login/", "/accounts/signup/"])
+def test_auth_page_link_arrows_are_hidden_from_screen_readers(client, db, url):
+    html = client.get(url).content.decode()
+    assert '<span aria-hidden="true">→</span>' in html
