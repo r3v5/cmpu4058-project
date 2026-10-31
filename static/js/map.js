@@ -386,6 +386,15 @@
 
   for (const toggle of filterForm.elements.size) toggle.addEventListener("change", renderMarkers);
 
+  // ⓘ buttons in the filter menu show or hide a one-line explanation.
+  for (const button of document.querySelectorAll("[data-help-toggle]")) {
+    button.addEventListener("click", () => {
+      const open = button.getAttribute("aria-expanded") !== "true";
+      button.setAttribute("aria-expanded", String(open));
+      document.getElementById(button.getAttribute("aria-controls")).hidden = !open;
+    });
+  }
+
   // "Only sites in map view": reload when ticked, and after each pan or zoom.
   inViewBox.addEventListener("change", () => {
     if (validateFilters()) run(() => loadSites({ fit: false }));

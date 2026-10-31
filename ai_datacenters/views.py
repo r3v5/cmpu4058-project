@@ -12,6 +12,27 @@ from .forms import SignupForm
 from .models import DataCenter
 
 
+# Plain-language help for the three measures, shown by the ⓘ buttons on
+# the map page (one panel by the size toggles, one hint per filter range).
+METRIC_HELP = {
+    "power_mw": {
+        "title": "IT Power (MW)",
+        "text": "How much electricity the site's computing equipment (AI chips and servers) "
+        "can draw at once. 1 MW is enough for about 800 homes; cooling comes on top.",
+    },
+    "capital_cost_busd": {
+        "title": "Capital cost ($B)",
+        "text": "Estimated money spent to build and equip the site: buildings, power and "
+        "cooling, and the AI chips.",
+    },
+    "h100e": {
+        "title": "H100 equivalents (H100e)",
+        "text": "Computing power counted in Nvidia H100 chips. Other chips, such as Amazon "
+        "Trainium or Google TPUs, are converted, so 500k H100e does as much AI work as 500,000 H100s.",
+    },
+}
+
+
 class MapView(LoginRequiredMixin, TemplateView):
     """The main screen: filters, sites list, nearby search and the map.
 
@@ -26,6 +47,7 @@ class MapView(LoginRequiredMixin, TemplateView):
         context["owners"] = owner_choices()
         context["countries"] = country_choices()
         context["total"] = DataCenter.objects.count()
+        context["metric_help"] = METRIC_HELP
         return context
 
 

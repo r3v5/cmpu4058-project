@@ -102,7 +102,14 @@
           </select>
         </div>
         <fieldset class="mb-3">
-          <legend class="form-label fs-6">IT Power (MW)</legend>
+          <legend class="form-label fs-6 legend-help">
+            IT Power (MW)
+            <button class="info-button" type="button" data-help-toggle aria-expanded="false"
+                    aria-controls="help-power_mw" aria-label="What is {{ metric_help.power_mw.title }}?">
+              <span class="info-icon" aria-hidden="true">i</span>
+            </button>
+          </legend>
+          <p class="form-text help-text" id="help-power_mw" hidden>{{ metric_help.power_mw.text }}</p>
           <div class="range-row">
             <label class="visually-hidden" for="f-mw-min">Minimum power (MW)</label>
             <input class="form-control" id="f-mw-min" name="mw_min" type="number" min="0" step="any"
@@ -115,7 +122,14 @@
           <div class="field-error" id="mw-error" hidden></div>
         </fieldset>
         <fieldset class="mb-3">
-          <legend class="form-label fs-6">Capital cost ($B)</legend>
+          <legend class="form-label fs-6 legend-help">
+            Capital cost ($B)
+            <button class="info-button" type="button" data-help-toggle aria-expanded="false"
+                    aria-controls="help-capital_cost_busd" aria-label="What is {{ metric_help.capital_cost_busd.title }}?">
+              <span class="info-icon" aria-hidden="true">i</span>
+            </button>
+          </legend>
+          <p class="form-text help-text" id="help-capital_cost_busd" hidden>{{ metric_help.capital_cost_busd.text }}</p>
           <div class="range-row">
             <label class="visually-hidden" for="f-cost-min">Minimum capital cost ($B)</label>
             <input class="form-control" id="f-cost-min" name="cost_min" type="number" min="0" step="any"
@@ -128,7 +142,14 @@
           <div class="field-error" id="cost-error" hidden></div>
         </fieldset>
         <fieldset class="mb-3">
-          <legend class="form-label fs-6">H100 equivalents (H100e)</legend>
+          <legend class="form-label fs-6 legend-help">
+            H100 equivalents (H100e)
+            <button class="info-button" type="button" data-help-toggle aria-expanded="false"
+                    aria-controls="help-h100e" aria-label="What is {{ metric_help.h100e.title }}?">
+              <span class="info-icon" aria-hidden="true">i</span>
+            </button>
+          </legend>
+          <p class="form-text help-text" id="help-h100e" hidden>{{ metric_help.h100e.text }}</p>
           <div class="range-row">
             <label class="visually-hidden" for="f-h100e-min">Minimum H100 equivalents</label>
             <input class="form-control" id="f-h100e-min" name="h100e_min" type="number" min="0" step="any"
@@ -159,6 +180,20 @@
       <label class="btn btn-size" for="size-cost">Capital cost ($B)</label>
       <input class="btn-check" type="radio" name="size" id="size-h100e" value="h100e">
       <label class="btn btn-size" for="size-h100e" title="H100 equivalents">H100e</label>
+    </div>
+
+    <div class="dropdown">
+      <button class="btn btn-outline-dark toolbar-button info-toggle" type="button" id="metrics-help-toggle"
+              data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false"
+              aria-label="What do these measures mean?">
+        <span class="info-icon" aria-hidden="true">i</span>
+      </button>
+      <div class="dropdown-menu dropdown-menu-end help-menu p-3">
+        <h2 class="h6">What the measures mean</h2>
+        <dl class="mb-0">
+          {% for metric in metric_help.values %}<dt>{{ metric.title }}</dt><dd>{{ metric.text }}</dd>{% endfor %}
+        </dl>
+      </div>
     </div>
 
     <p class="toolbar-count mb-0" id="result-count" aria-live="polite">{{ total }} results</p>

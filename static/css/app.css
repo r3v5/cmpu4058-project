@@ -96,6 +96,24 @@
 #sidebar .nav-link.active { font-weight: 700; }
 
 .range-row { display: flex; align-items: center; gap: .5rem; }
+/* ⓘ hint buttons: a small circled "i"; the button itself stays 44 px. */
+.info-icon {
+  display: inline-flex; align-items: center; justify-content: center; width: 1.25rem; height: 1.25rem;
+  border: 1.5px solid currentColor; border-radius: 50%; font: 700 .8rem/1 Georgia, serif; font-style: italic;
+}
+/* No float: Bootstrap floats legends, and the flex range row would squeeze in beside it. */
+.legend-help { display: flex; align-items: center; gap: .25rem; float: none; }
+.info-button {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px;
+  margin: -12px 0; padding: 0; border: 0; background: none; color: #000;
+}
+.info-button:focus-visible { outline: 2px solid #000; outline-offset: -6px; }
+.info-button[aria-expanded="true"] .info-icon { background: #000; color: #fff; }
+.help-text { margin-top: 0; margin-bottom: .5rem; color: #333; }
+.info-toggle { justify-content: center; min-width: 44px; padding-inline: .5rem; }
+.help-menu { width: min(24rem, calc(100vw - 1.5rem)); border: 1px solid #000; z-index: 1100; }
+.help-menu dt { font-weight: 700; }
+.help-menu dd { margin-bottom: .5rem; }
 .range-row .form-control { min-width: 0; }
 .within-row { display: flex; align-items: flex-end; gap: .5rem; }
 
