@@ -270,9 +270,9 @@
   // ---- Filters --------------------------------------------------------
 
   const RANGES = [
-    { min: "mw_min", max: "mw_max", error: "#mw-error", label: "IT Power" },
-    { min: "cost_min", max: "cost_max", error: "#cost-error", label: "Capital cost" },
-    { min: "h100e_min", max: "h100e_max", error: "#h100e-error", label: "H100e" },
+    { min: "mw_min", max: "mw_max", error: "#mw-error", label: "IT Power", unit: (v) => `${v.toLocaleString("en")} MW` },
+    { min: "cost_min", max: "cost_max", error: "#cost-error", label: "Capital cost", unit: (v) => `$${v}B` },
+    { min: "h100e_min", max: "h100e_max", error: "#h100e-error", label: "H100e", unit: shortCount },
   ];
 
   /** Check the min/max fields before calling the API. */
@@ -340,6 +340,66 @@
     const count = active.length - Math.max(owners - 1, 0); // several owners count as one filter
     $("#filter-count").textContent = count ? String(count) : "";
     $("#filter-toggle").setAttribute("aria-label", count ? `Filter, ${count} active` : "Filter");
+    renderChips();
+  }
+
+  // ---- Active filter chips ------------------------------------------
+  // One removable chip per active filter under the toolbar, so the filters
+  // stay visible with the menu closed (search has its own box).
+
+  /** The active filters as {label, clear} pairs, read from the form. */
+  function activeFilters() {
+    const chips = [];
+    for (const option of filterForm.elements.owner.selectedOptions) {
+      chips.push({ label: `Owner: ${option.value}`, clear: () => (option.selected = false) });
+    }
+    const country = filterForm.elements.country;
+    if (country.value) chips.push({ label: `Country: ${country.value}`, clear: () => (country.value = "") });
+    for (const range of RANGES) {
+      const min = filterForm.elements[range.min];
+      const max = filterForm.elements[range.max];
+      const [lo, hi] = [min.value.trim(), max.value.trim()];
+      if (!lo && !hi) continue;
+      const text = lo && hi ? `${range.unit(Number(lo))}–${range.unit(Number(hi))}`
+        : lo ? `≥ ${range.unit(Number(lo))}` : `≤ ${range.unit(Number(hi))}`;
+      chips.push({ label: `${range.label} ${text}`, clear: () => (min.value = max.value = "") });
+    }
+    if (inViewBox.checked) chips.push({ label: "In map view", clear: () => (inViewBox.checked = false) });
+    return chips;
+  }
+
+  let chipFocus = null; // index of a removed chip, to move focus to its neighbour
+
+  function removeFilters(clears, index) {
+    clears.forEach((clear) => clear());
+    chipFocus = index;
+    if (validateFilters()) run(() => loadSites({ fit: false }));
+  }
+
+  function renderChips() {
+    const box = $("#filter-chips");
+    const chips = activeFilters();
+    const buttons = chips.map(({ label, clear }, i) =>
+      el(
+        "button",
+        { type: "button", class: "btn btn-sm filter-chip", "aria-label": `Remove filter: ${label}`, onclick: () => removeFilters([clear], i) },
+        label,
+        el("span", { "aria-hidden": "true" }, "×"),
+      ),
+    );
+    if (chips.length > 1) {
+      buttons.push(
+        el("button", { type: "button", class: "btn btn-sm btn-link filter-chips-clear", onclick: () => removeFilters(chips.map((c) => c.clear), 0) }, "Clear all"),
+      );
+    }
+    box.replaceChildren(...buttons);
+    box.hidden = chips.length === 0;
+    if (chipFocus !== null) {
+      // The chip that had focus is gone: focus its neighbour, or the Filter button.
+      const chipButtons = box.querySelectorAll(".filter-chip");
+      (chipButtons[Math.min(chipFocus, chipButtons.length - 1)] || $("#filter-toggle")).focus();
+      chipFocus = null;
+    }
   }
 
   let latestLoad = 0;

@@ -88,6 +88,12 @@
 .btn-check:checked + .btn-size { background: #000; color: #fff; }
 .btn-check:focus-visible + .btn-size { outline: 2px solid #000; outline-offset: 2px; }
 .toolbar-count { color: #555; font-weight: 600; white-space: nowrap; }
+/* Active filter chips: a row under the toolbar, only while filters are on. */
+.filter-chips { flex: 1 0 100%; display: flex; flex-wrap: wrap; align-items: center; gap: .375rem; }
+.filter-chips[hidden] { display: none; }
+.filter-chip { gap: .375rem; border: 1px solid #000; border-radius: 999px; background: #fff; color: #000; font-weight: 500; white-space: nowrap; }
+.filter-chip:hover { background: #000; color: #fff; }
+.filter-chips-clear { color: #000; text-decoration: underline; }
 .label-short { display: none; }
 @media (max-width: 575.98px) {
   /* Portrait phones: search on its own row, then Filter, size toggles and ⓘ. */
@@ -114,6 +120,9 @@
   }
   .label-short { display: inline; }
   .toolbar-count { font-size: .875rem; }
+  /* Chips in one row that scrolls sideways, so they add a single line. */
+  .filter-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; padding-bottom: 2px; }
+  .filter-chips > * { flex: 0 0 auto; }
   .map-hint { bottom: 2.5rem; font-size: .875rem; }
   /* Smaller map overlays. */
   .size-legend { font-size: .8rem; }
