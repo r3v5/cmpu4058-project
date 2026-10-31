@@ -16,7 +16,7 @@ class DataCenterSerializer(GeoFeatureModelSerializer):
         model = DataCenter
         geo_field = "location"
         fields = [
-            "id", "name", "owner", "users", "country", "power_mw", "capital_cost_busd",
+            "id", "name", "owner", "users", "country", "power_mw", "capital_cost_busd", "h100e",
             "address", "geocode_precision", "nearest_link", "nearest_km",
         ]
 

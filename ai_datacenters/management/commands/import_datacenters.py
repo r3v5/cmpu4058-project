@@ -52,6 +52,7 @@ class Command(BaseCommand):
             location = Point(float(row["longitude"]), float(row["latitude"]), srid=4326)
             power_mw = float(row["power_mw"])
             cost = float(row["capital_cost_busd"])
+            h100e = float(row["h100e"])
         except ValueError as exc:
             raise CommandError(f"Line {line} ({name}): {exc}") from exc
 
@@ -60,6 +61,7 @@ class Command(BaseCommand):
         dc.users = row["users"].strip()
         dc.power_mw = power_mw
         dc.capital_cost_busd = cost
+        dc.h100e = h100e
         dc.address = row["address"].strip()
         dc.location = location
         dc.geocode_precision = row["geocode_precision"].strip()

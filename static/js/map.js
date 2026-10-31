@@ -35,10 +35,18 @@
 
   const fmtMW = (mw) => `${Math.round(mw).toLocaleString("en")} MW`;
   const fmtCost = (busd) => `$${busd.toFixed(1)}B`;
+  /** Short H100-equivalent count: 1.11M, 293k or 850. */
+  function shortCount(n) {
+    if (n >= 1e6) return `${Number((n / 1e6).toFixed(2))}M`;
+    if (n >= 1e3) return `${Math.round(n / 1e3).toLocaleString("en")}k`;
+    return String(Math.round(n));
+  }
+  const fmtH100e = (n) => `${shortCount(n)} H100e`;
   // Epoch AI records only current figures, so a site that is not running
   // yet has 0 MW and $0 cost. Show that in words instead of as a zero.
   const NOT_OPERATIONAL = "Not yet operational";
   const siteMW = (props) => (props.power_mw > 0 ? fmtMW(props.power_mw) : NOT_OPERATIONAL);
+  const siteH100e = (props) => (props.h100e > 0 ? fmtH100e(props.h100e) : "—");
   const siteCost = (props) => (props.capital_cost_busd > 0 ? fmtCost(props.capital_cost_busd) : "—");
   const fmtKm = (km) => `${km < 10 ? km.toFixed(1) : Math.round(km).toLocaleString("en")} km`;
   const FIELD_LABELS = { lat: "Latitude", lon: "Longitude", km: "Radius", n: "Number of sites" };
@@ -163,6 +171,7 @@
   const SIZES = {
     power_mw: { title: "IT Power (MW)", legend: [1000, 500, 100], format: fmtMW, short: (v) => v.toLocaleString("en") },
     capital_cost_busd: { title: "Capital cost ($B)", legend: [40, 16, 4], format: fmtCost, short: (v) => `$${v}B` },
+    h100e: { title: "H100 equivalents", legend: [1e6, 4e5, 1e5], format: fmtH100e, short: shortCount },
   };
   const TEAL = "#4fd1b5";
   const sizeMetric = () => filterForm.elements.size.value;
@@ -183,6 +192,7 @@
       ["Country", props.country || "—"],
       ["Power", siteMW(props)],
       ["Capital cost", siteCost(props)],
+      ["H100 equivalents", siteH100e(props)],
     ];
     if (props.nearest_km !== null && props.nearest_km !== undefined) {
       rows.push(["Nearest other site", fmtKm(props.nearest_km)]);
@@ -257,6 +267,7 @@
   const RANGES = [
     { min: "mw_min", max: "mw_max", error: "#mw-error", label: "Power" },
     { min: "cost_min", max: "cost_max", error: "#cost-error", label: "Capital cost" },
+    { min: "h100e_min", max: "h100e_max", error: "#h100e-error", label: "H100e" },
   ];
 
   /** Check the min/max fields before calling the API. */

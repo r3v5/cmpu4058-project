@@ -127,6 +127,19 @@
           </div>
           <div class="field-error" id="cost-error" hidden></div>
         </fieldset>
+        <fieldset class="mb-3">
+          <legend class="form-label fs-6">H100 equivalents (H100e)</legend>
+          <div class="range-row">
+            <label class="visually-hidden" for="f-h100e-min">Minimum H100 equivalents</label>
+            <input class="form-control" id="f-h100e-min" name="h100e_min" type="number" min="0" step="any"
+                   inputmode="decimal" placeholder="min" aria-describedby="h100e-error">
+            <span aria-hidden="true">–</span>
+            <label class="visually-hidden" for="f-h100e-max">Maximum H100 equivalents</label>
+            <input class="form-control" id="f-h100e-max" name="h100e_max" type="number" min="0" step="any"
+                   inputmode="decimal" placeholder="max" aria-describedby="h100e-error">
+          </div>
+          <div class="field-error" id="h100e-error" hidden></div>
+        </fieldset>
         <div class="form-check in-view-check mb-3">
           <input class="form-check-input" type="checkbox" id="f-in-view" aria-describedby="f-in-view-help">
           <label class="form-check-label" for="f-in-view">Only sites in map view</label>
@@ -144,6 +157,8 @@
       <label class="btn btn-size" for="size-mw">IT Power (MW)</label>
       <input class="btn-check" type="radio" name="size" id="size-cost" value="capital_cost_busd">
       <label class="btn btn-size" for="size-cost">Capital cost ($B)</label>
+      <input class="btn-check" type="radio" name="size" id="size-h100e" value="h100e">
+      <label class="btn btn-size" for="size-h100e" title="H100 equivalents">H100e</label>
     </div>
 
     <p class="toolbar-count mb-0" id="result-count" aria-live="polite">{{ total }} results</p>

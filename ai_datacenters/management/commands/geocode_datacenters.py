@@ -15,7 +15,7 @@ from ai_datacenters.geocoding import clean_owner, clean_tag, geocode_row, load_o
 
 EPOCH_CSV_URL = "https://epoch.ai/data/data_centers/data_centers.csv"
 OUTPUT_FIELDS = [
-    "name", "owner", "users", "country", "power_mw", "capital_cost_busd",
+    "name", "owner", "users", "country", "power_mw", "capital_cost_busd", "h100e",
     "address", "latitude", "longitude", "geocode_precision",
 ]
 
@@ -49,6 +49,7 @@ class Command(BaseCommand):
                 "country": row["Country"].strip(),
                 "power_mw": row["Current power (MW)"],
                 "capital_cost_busd": row["Current total capital cost (2025 USD billions)"],
+                "h100e": row["Current H100 equivalents"],
                 "address": row["Address"].strip(),
                 "latitude": f"{lat:.6f}",
                 "longitude": f"{lon:.6f}",

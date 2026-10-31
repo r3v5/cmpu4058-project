@@ -82,14 +82,16 @@ def country_stats(request: Request):
 
 @api_view(["GET"])
 def filter_options(request: Request):
-    """Values for the filter form: owners, countries and MW/cost ranges."""
+    """Values for the filter form: owners, countries and MW/cost/H100e ranges."""
     ranges = DataCenter.objects.aggregate(
         mw_min=Min("power_mw"), mw_max=Max("power_mw"),
         cost_min=Min("capital_cost_busd"), cost_max=Max("capital_cost_busd"),
+        h100e_min=Min("h100e"), h100e_max=Max("h100e"),
     )
     return Response({
         "owners": list(owner_choices()),
         "countries": list(country_choices()),
         "power_mw": {"min": ranges["mw_min"], "max": ranges["mw_max"]},
         "capital_cost_busd": {"min": ranges["cost_min"], "max": ranges["cost_max"]},
+        "h100e": {"min": ranges["h100e_min"], "max": ranges["h100e_max"]},
     })

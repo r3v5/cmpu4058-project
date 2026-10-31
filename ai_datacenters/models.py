@@ -50,6 +50,9 @@ class DataCenter(models.Model):
     capital_cost_busd = models.FloatField(
         "capital cost (2025 USD bn)", validators=[MinValueValidator(0)]
     )
+    # Computing power in Nvidia H100-equivalents: Epoch AI converts every
+    # chip type (A100, B200, TPU, ...) to how many H100s it matches.
+    h100e = models.FloatField("H100 equivalents", validators=[MinValueValidator(0)], default=0)
     address = models.CharField(max_length=300, blank=True)
     location = models.PointField(srid=4326)
     geocode_precision = models.CharField(max_length=10, choices=Precision.choices)

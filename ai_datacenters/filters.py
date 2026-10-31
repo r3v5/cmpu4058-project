@@ -63,6 +63,8 @@ class DataCenterFilter(filters.FilterSet):
     mw_max = filters.NumberFilter(field_name="power_mw", lookup_expr="lte")
     cost_min = filters.NumberFilter(field_name="capital_cost_busd", lookup_expr="gte")
     cost_max = filters.NumberFilter(field_name="capital_cost_busd", lookup_expr="lte")
+    h100e_min = filters.NumberFilter(field_name="h100e", lookup_expr="gte")
+    h100e_max = filters.NumberFilter(field_name="h100e", lookup_expr="lte")
     # ?search=texas — free text over site, owner, users, address and country.
     search = filters.CharFilter(method="filter_search")
     # ?bbox=min_lon,min_lat,max_lon,max_lat — only sites inside the box.
@@ -72,7 +74,10 @@ class DataCenterFilter(filters.FilterSet):
 
     class Meta:
         model = DataCenter
-        fields = ["owner", "country", "mw_min", "mw_max", "cost_min", "cost_max", "search", "bbox"]
+        fields = [
+            "owner", "country", "mw_min", "mw_max", "cost_min", "cost_max",
+            "h100e_min", "h100e_max", "search", "bbox",
+        ]
 
     def filter_search(self, queryset: QuerySet[DataCenter], name: str, value: str):
         matches = Q()
