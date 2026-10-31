@@ -792,15 +792,51 @@
   ];
   const rampFill = (mw) => (mw <= 0 ? "#fff" : RAMP.find((step) => mw < step.below).fill);
 
+  // Countries with sites, largest first: the same figures as the shading,
+  // as text. The grey steps are not 3:1 apart (WCAG 1.4.11), and the
+  // country tooltips need a mouse, so this table is the accessible version.
+  let countryTotals = [];
+  function countryTable() {
+    return el(
+      "details",
+      { class: "legend-table" },
+      el("summary", {}, "Show as table"),
+      el(
+        "div",
+        { class: "legend-table-scroll", tabindex: "0", role: "region", "aria-label": "Total IT power per country" },
+        el(
+          "table",
+          { class: "table table-sm mb-0" },
+          el("caption", { class: "visually-hidden" }, "Countries with AI data centers, by total IT power"),
+          el("thead", {}, el("tr", {}, el("th", { scope: "col" }, "Country"), el("th", { scope: "col", class: "text-end" }, "MW"), el("th", { scope: "col", class: "text-end" }, "Sites"))),
+          el(
+            "tbody",
+            {},
+            countryTotals.map((p) =>
+              el("tr", {}, el("th", { scope: "row" }, p.name), el("td", { class: "text-end" }, Math.round(p.total_mw).toLocaleString("en")), el("td", { class: "text-end" }, String(p.site_count))),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   const choroplethLegend = L.control({ position: "bottomright" });
-  choroplethLegend.onAdd = () =>
-    el(
+  choroplethLegend.onAdd = () => {
+    const legend = el(
       "div",
       { class: "map-legend" },
       el("div", { class: "fw-bold" }, "Total MW per country"),
       el("div", {}, el("span", { class: "ramp", style: "background:#fff" }), "0"),
       RAMP.map((step) => el("div", {}, el("span", { class: "ramp", style: `background:${step.fill}` }), step.label)),
+      countryTable(),
     );
+    L.DomEvent.disableClickPropagation(legend);
+    L.DomEvent.disableScrollPropagation(legend);
+    return legend;
+  };
+
+  const closeCountryTips = () => choroplethLayer.eachLayer((group) => group.eachLayer((layer) => layer.closeTooltip()));
 
   let choroplethLoaded = false;
   async function toggleChoropleth(on) {
@@ -811,6 +847,10 @@
     }
     if (!choroplethLoaded) {
       const data = await api("/api/countries/stats/");
+      countryTotals = data.features
+        .map((f) => f.properties)
+        .filter((p) => p.site_count > 0)
+        .sort((a, b) => b.total_mw - a.total_mw);
       L.geoJSON(data, {
         pane: "choropleth",
         style: (f) => ({ fillColor: rampFill(f.properties.total_mw), fillOpacity: 0.75, color: "#000", weight: 0.5 }),
@@ -935,6 +975,7 @@
     if (event.key === "Escape") {
       map.closePopup();
       hideValueTip();
+      closeCountryTips();
     }
     // Ctrl+K (⌘K on a Mac) jumps to the search box. A shortcut with a
     // modifier key cannot be set off by speech input or a stray key press
