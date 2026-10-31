@@ -154,9 +154,22 @@
     maxClusterRadius: 40,
     disableClusteringAtZoom: SITE_ZOOM,
     animate: !reduceMotion,
+    // Leaflet makes each cluster a focusable role="button"; the hidden text
+    // gives it a name ("12 sites: zoom in") instead of a bare number.
     iconCreateFunction: (group) =>
-      L.divIcon({ html: String(group.getChildCount()), className: "cluster-icon", iconSize: L.point(36, 36) }),
+      L.divIcon({
+        html: `${group.getChildCount()}<span class="visually-hidden"> sites: zoom in</span>`,
+        className: "cluster-icon",
+        iconSize: L.point(36, 36),
+      }),
   }).addTo(map);
+  // A cluster opened from the keyboard disappears as the map zooms in: keep
+  // focus on the map, where Tab reaches the sites now shown.
+  cluster.on("clusterclick", (event) => {
+    if (event.layer.getElement() === document.activeElement) {
+      map.once("moveend", () => mapElement.focus({ preventScroll: true }));
+    }
+  });
 
   const fitOptions = { padding: [30, 30], maxZoom: 8, animate: !reduceMotion };
 
@@ -215,29 +228,96 @@
     return L.latLng(lat, lon);
   }
 
+  /** The value a circle is sized by, e.g. "1,037 MW". */
+  function sizeValue(props) {
+    const value = props[sizeMetric()];
+    return value > 0 ? SIZES[sizeMetric()].format(value) : NOT_OPERATIONAL;
+  }
+
+  // One value tooltip for all circles, shown on hover and on keyboard focus.
+  // WCAG 1.4.13: the pointer can move onto it without it closing, it stays
+  // until the pointer or focus leaves, and Escape closes it.
+  const valueTip = L.tooltip({ direction: "top", className: "value-tooltip", interactive: true });
+  let tipTimer;
+  function showValueTip(marker) {
+    clearTimeout(tipTimer);
+    valueTip.options.offset = L.point(0, -marker.getRadius());
+    valueTip.setLatLng(marker.getLatLng()).setContent(sizeValue(marker.feature.properties)).openOn(map);
+  }
+  function hideValueTip() {
+    clearTimeout(tipTimer);
+    valueTip.close();
+  }
+  function hideValueTipSoon() {
+    clearTimeout(tipTimer);
+    tipTimer = setTimeout(hideValueTip, 300); // time to move the pointer onto it
+  }
+  valueTip.once("add", () => {
+    const node = valueTip.getElement();
+    node.addEventListener("mouseenter", () => clearTimeout(tipTimer));
+    node.addEventListener("mouseleave", hideValueTipSoon);
+    L.DomEvent.disableClickPropagation(node); // a click on it is not a map click
+  });
+
+  /** Make a drawn circle a keyboard button: Tab to it, Enter or Space opens its popup. */
+  function makeFocusable(marker) {
+    const node = marker.getElement();
+    const props = marker.feature.properties;
+    node.setAttribute("tabindex", "0");
+    node.setAttribute("role", "button");
+    node.setAttribute("aria-label", `${props.name}, ${sizeValue(props)}`);
+    node.addEventListener("focus", () => showValueTip(marker));
+    node.addEventListener("blur", hideValueTip);
+    node.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      event.stopPropagation(); // not a map key press
+      popupOpeners.set(marker.getPopup(), node);
+      marker.openPopup();
+    });
+  }
+
   function renderMarkers() {
-    const metric = SIZES[sizeMetric()];
-    // A marker removed under the mouse never gets "mouseout", so close its
-    // tooltip first or it stays on the map.
-    cluster.eachLayer((layer) => layer.closeTooltip());
+    hideValueTip();
     cluster.clearLayers();
     cluster.addLayers(
       sites.map((feature) => {
-        const props = feature.properties;
-        const marker = L.circleMarker(latLngOf(feature), markerStyle(props));
-        marker.bindPopup(() => popupContent(props));
-        // Hover shows the value the circle is sized by, e.g. "1,037 MW".
-        const value = props[sizeMetric()];
-        marker.bindTooltip(value > 0 ? metric.format(value) : NOT_OPERATIONAL, {
-          direction: "top",
-          offset: [0, -marker.getRadius()],
-          className: "value-tooltip",
-        });
+        const marker = L.circleMarker(latLngOf(feature), markerStyle(feature.properties));
+        marker.feature = feature;
+        marker.bindPopup(() => popupContent(feature.properties));
+        marker.on("mouseover", () => showValueTip(marker));
+        marker.on("mouseout", hideValueTipSoon);
+        // The cluster group adds and removes circles as the zoom changes, and
+        // each add draws a new SVG element.
+        marker.on("add", () => makeFocusable(marker));
         return marker;
       }),
     );
     renderSizeLegend();
   }
+
+  // A popup opened from the keyboard or a list takes the focus, so screen
+  // readers read it. Closing it gives focus back to the element that opened
+  // it, unless the user has already moved focus somewhere else.
+  const popupOpeners = new WeakMap(); // popup -> element that opened it
+  // A closed side panel is visibility: hidden, which still has a size.
+  const isVisible = (node) =>
+    node.isConnected && node.getClientRects().length > 0 && getComputedStyle(node).visibility !== "hidden";
+  map.on("popupopen", (event) => {
+    if (!popupOpeners.has(event.popup)) return;
+    const heading = event.popup.getElement().querySelector("h2");
+    heading.setAttribute("tabindex", "-1");
+    heading.focus({ preventScroll: true });
+  });
+  map.on("popupclose", (event) => {
+    const opener = popupOpeners.get(event.popup);
+    popupOpeners.delete(event.popup);
+    const active = document.activeElement;
+    if (!opener || (active !== document.body && !event.popup.getElement().contains(active))) return;
+    // On phones the list is in the closed panel: use the ☰ button that opens it.
+    const menuButton = $("[aria-controls='sidebar']");
+    (isVisible(opener) ? opener : isVisible(menuButton) ? menuButton : mapElement).focus({ preventScroll: true });
+  });
 
   /** Zoom to a site chosen from a list and open its popup.
    *
@@ -245,13 +325,24 @@
    * sites, so the site may be hidden by the filters. (markercluster's
    * zoomToShowLayer never calls back for circle markers.)
    */
-  function showSite(feature) {
-    if (!desktop.matches) bootstrap.Offcanvas.getOrCreateInstance(sidebar).hide();
+  function showSite(feature, opener) {
     const latlng = latLngOf(feature);
-    map.once("moveend", () =>
-      L.popup({ offset: [0, -4] }).setLatLng(latlng).setContent(popupContent(feature.properties)).openOn(map),
-    );
-    map.setView(latlng, Math.max(map.getZoom(), SITE_ZOOM), { animate: !reduceMotion });
+    const reveal = () => {
+      map.once("moveend", () => {
+        const popup = L.popup({ offset: [0, -4] }).setLatLng(latlng).setContent(popupContent(feature.properties));
+        popupOpeners.set(popup, opener);
+        popup.openOn(map);
+      });
+      map.setView(latlng, Math.max(map.getZoom(), SITE_ZOOM), { animate: !reduceMotion });
+    };
+    if (!desktop.matches && sidebar.classList.contains("show")) {
+      // Wait until the panel has closed and handed focus back to ☰, then
+      // open the popup and focus it.
+      sidebar.addEventListener("hidden.bs.offcanvas", reveal, { once: true });
+      bootstrap.Offcanvas.getOrCreateInstance(sidebar).hide();
+    } else {
+      reveal();
+    }
   }
 
   function siteButton(feature, detail) {
@@ -260,7 +351,7 @@
       {},
       el(
         "button",
-        { type: "button", "data-id": feature.id, onclick: () => showSite(feature) },
+        { type: "button", "data-id": feature.id, onclick: (event) => showSite(feature, event.currentTarget) },
         feature.properties.name,
         el("span", { class: "detail" }, detail),
       ),
@@ -523,7 +614,7 @@
     queryLayer.clearLayers();
     clearResults();
     L.marker(latlng, {
-      icon: L.divIcon({ className: "query-point", html: "✕", iconSize: [24, 24] }),
+      icon: L.divIcon({ className: "query-point", html: '<span aria-hidden="true">✕</span>', iconSize: [24, 24] }),
       interactive: false,
       keyboard: false,
     }).addTo(queryLayer);
@@ -824,7 +915,10 @@
   $("#hint-close").addEventListener("click", dismissHint);
 
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") map.closePopup();
+    if (event.key === "Escape") {
+      map.closePopup();
+      hideValueTip();
+    }
     // Ctrl+K (⌘K on a Mac) jumps to the search box. A shortcut with a
     // modifier key cannot be set off by speech input or a stray key press
     // (WCAG 2.1.4), unlike a single "/".

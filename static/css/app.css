@@ -139,6 +139,12 @@
   }
 }
 #map { position: absolute; inset: 0; }
+/* Inside the map edge, so the page edge never clips the focus ring. */
+#map:focus-visible { outline-offset: -3px; }
+/* A focused site circle gets a thick black ring instead of a box outline. */
+#map path.leaflet-interactive:focus-visible { outline: none !important; stroke: #000; stroke-width: 4px; }
+.cluster-icon:focus-visible { outline-offset: 1px; }
+
 
 #sidebar .nav-link { color: #000; padding-inline: .5rem; }
 #sidebar .nav-tabs { --bs-nav-tabs-border-color: #000; --bs-nav-tabs-link-active-border-color: #000 #000 #fff; }
