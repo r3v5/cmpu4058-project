@@ -98,6 +98,13 @@ STATIC_URL = "/static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 # collectstatic writes here; the directory is a volume shared with Nginx.
 STATIC_ROOT = BASE_DIR / "staticfiles"
+# collectstatic adds a content hash to each file name (app.3f9a1c.css). Nginx
+# can then let browsers cache /static/ for days, and a changed file gets a
+# new URL instead of a stale cached copy.
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.ManifestStaticFilesStorage"},
+}
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

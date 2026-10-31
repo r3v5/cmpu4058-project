@@ -10,6 +10,15 @@ from django.contrib.gis.geos import MultiPolygon, Point, Polygon
 from ai_datacenters.models import Country, DataCenter
 
 
+@pytest.fixture(autouse=True)
+def plain_static_storage(settings):
+    """Tests do not run collectstatic, so there is no hashed-name manifest."""
+    settings.STORAGES = {
+        **settings.STORAGES,
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    }
+
+
 @pytest.fixture
 def testland(db):
     square = Polygon(((0, 0), (10, 0), (10, 10), (0, 10), (0, 0)), srid=4326)
