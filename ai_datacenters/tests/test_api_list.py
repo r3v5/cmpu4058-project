@@ -73,3 +73,60 @@ def test_filter_options(demo_client, sites):
     assert data["countries"] == ["Testland"]
     assert data["power_mw"] == {"min": 100, "max": 400}
     assert data["capital_cost_busd"] == {"min": 1.0, "max": 4.0}
+
+
+@pytest.mark.parametrize(
+    "term, expected",
+    [
+        ("alp", ["Alpha"]),  # name, any case
+        ("META", ["Beta"]),  # owner
+        ("testland", ["Alpha", "Beta", "Gamma"]),  # country
+        ("anthropic", ["Gamma"]),  # users
+        ("main st", ["Faraway"]),  # address
+        ("nothing-like-this", []),
+    ],
+)
+def test_search_matches_name_owner_country_users_and_address(demo_client, sites, term, expected):
+    from ai_datacenters.models import DataCenter
+
+    DataCenter.objects.filter(name="Gamma").update(users="Anthropic, Cursor")
+    DataCenter.objects.filter(name="Faraway").update(address="1 Main St, Somewhere")
+    assert names(demo_client.get(URL, {"search": term})) == expected
+
+
+def test_search_combines_with_filters(demo_client, sites):
+    assert names(demo_client.get(URL, {"search": "a", "owner": "Google"})) == ["Alpha", "Faraway"]
+    assert names(demo_client.get(URL, {"search": "alpha", "mw_min": 150})) == []
+
+
+def test_bbox_returns_sites_inside_the_box(demo_client, sites):
+    # min_lon,min_lat,max_lon,max_lat — the format Leaflet's getBounds() gives.
+    assert names(demo_client.get(URL, {"bbox": "0,0,2.5,2.5"})) == ["Alpha", "Beta"]
+
+
+def test_bbox_combines_with_filters(demo_client, sites):
+    params = {"bbox": "0,0,60,60", "owner": "Google"}
+    assert names(demo_client.get(URL, params)) == ["Alpha", "Faraway"]
+
+
+def test_bbox_with_no_sites_inside_is_empty(demo_client, sites):
+    assert names(demo_client.get(URL, {"bbox": "-10,-10,-5,-5"})) == []
+
+
+@pytest.mark.parametrize(
+    "bbox",
+    [
+        "1,2,3",  # too few numbers
+        "1,2,3,4,5",  # too many numbers
+        "a,b,c,d",  # not numbers
+        "3,0,1,2",  # min_lon larger than max_lon
+        "0,3,2,1",  # min_lat larger than max_lat
+        "-181,0,1,1",  # longitude out of range
+        "0,-91,1,1",  # latitude out of range
+        "nan,0,1,1",  # not a finite number
+    ],
+)
+def test_invalid_bbox_returns_400(demo_client, sites, bbox):
+    response = demo_client.get(URL, {"bbox": bbox})
+    assert response.status_code == 400
+    assert "bbox" in response.json()
