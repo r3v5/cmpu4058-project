@@ -41,6 +41,19 @@ def test_regular_user_cannot_write(demo_client, make_dc):
     assert DataCenter.objects.count() == 1
 
 
+def test_create_response_includes_the_nearest_site(staff_client, make_dc):
+    # The nearest-site line is computed after the row is saved; the response
+    # must show it, not the empty value from before the save.
+    make_dc("Alpha", 1, 1)
+    response = staff_client.post(URL, feature(), format="json")
+    assert response.status_code == 201, response.content
+    props = response.json()["properties"]
+    stored = DataCenter.objects.get(pk=response.json()["id"])
+    assert props["nearest_km"] is not None
+    assert props["nearest_km"] == pytest.approx(stored.nearest_km)
+    assert props["nearest_link"] is not None
+
+
 def test_staff_can_create_update_and_delete(staff_client, testland):
     response = staff_client.post(URL, feature(), format="json")
     assert response.status_code == 201, response.content
@@ -94,3 +107,4 @@ def test_api_schema_is_served(demo_client):
 @pytest.mark.parametrize("url", ["/api/schema/", "/api/docs/"])
 def test_api_docs_need_login(api_client, db, url):
     assert api_client.get(url).status_code in (401, 403)
+
