@@ -80,7 +80,7 @@
 /* map.js sets max-height to the space below the button. */
 .filter-menu, .help-menu { overflow-y: auto; overscroll-behavior: contain; }
 .in-view-check { display: grid; grid-template-columns: auto 1fr; align-items: center; column-gap: .5rem; min-height: 44px; padding-left: 0; }
-.in-view-check .form-check-input { float: none; margin: 0; width: 1.25rem; height: 1.25rem; border-color: #000; }
+.in-view-check .form-check-input { float: none; margin: 0; width: 1.5rem; height: 1.5rem; border-color: #000; }
 .in-view-check .form-text { grid-column: 2; margin-top: 0; }
 .size-toggle { display: flex; gap: .5rem; }
 .btn-size { display: inline-flex; align-items: center; background: #ececec; border: 0; color: #000; font-weight: 500; }
@@ -247,9 +247,9 @@ ol.site-list button::before { content: counter(result) "  "; font-weight: 700; }
 /* One-line description under each layer checkbox; the box stays narrow. */
 .map-toggles { max-width: 13rem; }
 .map-toggles .form-check { flex-wrap: wrap; }
-.layer-help { flex: 0 0 100%; padding-left: 1.75rem; margin-top: -.5rem; padding-bottom: .375rem; font-size: .75rem; color: #555; }
+.layer-help { flex: 0 0 100%; padding-left: 2rem; margin-top: -.5rem; padding-bottom: .375rem; font-size: .75rem; color: #555; }
 .map-toggles .form-check { display: flex; align-items: center; gap: .5rem; min-height: 44px; margin: 0; padding: 0; }
-.map-toggles .form-check-input { float: none; margin: 0; width: 1.25rem; height: 1.25rem; border-color: #000; }
+.map-toggles .form-check-input { float: none; margin: 0; width: 1.5rem; height: 1.5rem; border-color: #000; }
 /* "Show as table" under the choropleth legend. */
 .legend-table summary { display: flex; align-items: center; min-height: 44px; font-weight: 600; cursor: pointer; list-style-position: inside; }
 .legend-table-scroll { max-height: 12rem; overflow-y: auto; }
