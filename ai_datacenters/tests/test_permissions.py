@@ -108,3 +108,24 @@ def test_api_schema_is_served(demo_client):
 def test_api_docs_need_login(api_client, db, url):
     assert api_client.get(url).status_code in (401, 403)
 
+
+@pytest.mark.parametrize(
+    "path, expected",
+    [
+        ("/api/datacenters/nearest/", {"lat", "lon", "n", "owner", "search", "mw_min"}),
+        ("/api/datacenters/within/", {"lat", "lon", "km", "owner", "search", "mw_min"}),
+        ("/api/countries/at/", {"lat", "lon", "owner", "search", "mw_min"}),
+    ],
+)
+def test_api_schema_documents_the_query_parameters(demo_client, path, expected):
+    # Swagger UI lists these, so API users can see and try every parameter.
+    schema = demo_client.get("/api/schema/", {"format": "json"}).json()
+    names = {p["name"] for p in schema["paths"][path]["get"].get("parameters", [])}
+    assert expected <= names
+
+
+def test_api_schema_has_no_errors_or_warnings(db):
+    # drf-spectacular reports views whose request or response it cannot describe.
+    from django.core.management import call_command
+
+    call_command("spectacular", "--validate", "--fail-on-warn", "--file", "/dev/null")
