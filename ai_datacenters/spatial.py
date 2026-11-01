@@ -5,7 +5,7 @@ from django.contrib.gis.gdal import OGRGeometry, SpatialReference
 from django.contrib.gis.geos import LineString, Point, Polygon
 from django.contrib.gis.measure import D
 from django.db.models import (
-    Count, Expression, F, Field, FloatField, Func, IntegerField, OuterRef, QuerySet, Subquery, Sum,
+    Count, Expression, F, Field, FloatField, Func, IntegerField, OuterRef, Q, QuerySet, Subquery, Sum,
 )
 from django.db.models.functions import Coalesce
 
@@ -52,9 +52,19 @@ def nearest_datacenters(point: Point, n: int):
 
 
 def datacenters_within(point: Point, km: float):
-    """Radius search: sites within km of a point, closest first."""
+    """Radius search: sites within km of a point, closest first.
+
+    Two steps. First the boxes around the search circle (``in_bbox``), which
+    the GiST index on location answers without reading every row. Then the
+    exact distance on the ellipsoid, which PostGIS computes only for the
+    sites inside the boxes.
+    """
+    in_boxes = Q()
+    for box in _circle_boxes(point, km):
+        in_boxes |= Q(location__within=Polygon.from_bbox(box))
     return (
         DataCenter.objects.select_related("country")
+        .filter(in_boxes)
         .filter(location__distance_lte=(point, D(km=km), "spheroid"))
         .annotate(distance=Distance("location", point, spheroid=True))
         .order_by("distance")
@@ -69,6 +79,23 @@ def in_bbox(queryset: QuerySet[DataCenter], bbox: BBox):
     show only the sites in the current view.
     """
     return queryset.filter(location__within=Polygon.from_bbox(bbox))
+
+
+def _circle_boxes(point: Point, km: float):
+    """Bounding boxes that together cover the circle of radius km.
+
+    Taken from the buffer polygon, drawn 0.1% larger: its straight edges
+    cut slightly inside the true circle (by 0.03% of the radius), and a site
+    there must not be missed. A circle crossing the date line has
+    longitudes beyond ±180, so its box is split into one box on each side.
+    """
+    min_x, min_y, max_x, max_y = buffer_polygon(point, km * 1.001).extent
+    boxes = [(max(min_x, -180), min_y, min(max_x, 180), max_y)]
+    if min_x < -180:
+        boxes.append((min_x + 360, min_y, 180, max_y))
+    if max_x > 180:
+        boxes.append((-180, min_y, max_x - 360, max_y))
+    return boxes
 
 
 def buffer_polygon(point: Point, km: float):
