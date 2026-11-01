@@ -181,3 +181,48 @@ def test_buffer_is_valid_and_continuous(lat, lon, km, inside):
     for x, y in inside:
         assert buffer.contains(Point(x, y)), (x, y)
 
+
+# --- Nearby searches use the list filters ---------------------------------
+# The same search and filter parameters as /api/datacenters/, so a nearby
+# search only finds the sites the map shows. Powers: A 100, B 200, C 300,
+# D 400, X 1000 MW.
+
+def test_nearest_applies_the_list_filters(demo_client, sites):
+    response = demo_client.get("/api/datacenters/nearest/", {"lat": 1.0, "lon": 1.02, "n": 3, "mw_min": 250})
+    assert response.status_code == 200, response.content
+    assert feature_names(response.json()) == ["C", "D", "X"]
+
+
+def test_nearest_applies_the_search_text(demo_client, sites, make_dc):
+    make_dc("Meta Far", 9.0, 9.0, owner="Meta")
+    response = demo_client.get("/api/datacenters/nearest/", {"lat": 1.0, "lon": 1.02, "search": "meta"})
+    assert feature_names(response.json()) == ["Meta Far"]
+
+
+def test_within_applies_the_list_filters(demo_client, sites):
+    response = demo_client.get("/api/datacenters/within/", {"lat": 1.0, "lon": 1.0, "km": 150, "mw_max": 150})
+    assert response.status_code == 200, response.content
+    assert feature_names(response.json()["sites"]) == ["A"]
+
+
+def test_country_at_applies_the_list_filters_to_sites_and_totals(demo_client, sites):
+    response = demo_client.get("/api/countries/at/", {"lat": 5, "lon": 5, "mw_min": 250})
+    assert response.status_code == 200, response.content
+    data = response.json()
+    assert sorted(feature_names(data["sites"])) == ["C", "D"]
+    assert data["country"]["properties"]["site_count"] == 2
+    assert data["country"]["properties"]["total_mw"] == 700
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "/api/datacenters/nearest/?lat=1&lon=1&mw_min=abc",
+        "/api/datacenters/within/?lat=1&lon=1&km=50&mw_min=abc",
+        "/api/countries/at/?lat=5&lon=5&mw_min=abc",
+    ],
+)
+def test_nearby_searches_reject_a_bad_filter(demo_client, sites, url):
+    response = demo_client.get(url)
+    assert response.status_code == 400
+    assert "mw_min" in response.json()

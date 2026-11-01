@@ -158,3 +158,9 @@ def test_pages_declare_a_favicon(client, db, url):
     html = client.get(url).content.decode()
     assert '<link rel="icon" href="/static/img/favicon.svg" type="image/svg+xml">' in html
 
+
+def test_nearby_results_say_when_filters_apply(logged_in):
+    html = logged_in.get("/").content.decode()
+    # Shown by map.js when the search box or a filter limits the results.
+    assert '<p class="small text-secondary mb-2" id="results-note" hidden>' in html
+    assert "Only sites that match your search and filters." in html
