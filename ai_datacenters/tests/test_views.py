@@ -150,3 +150,11 @@ def test_map_page_has_a_place_for_active_filter_chips(logged_in):
 def test_auth_page_link_arrows_are_hidden_from_screen_readers(client, db, url):
     html = client.get(url).content.decode()
     assert '<span aria-hidden="true">→</span>' in html
+
+
+@pytest.mark.parametrize("url", ["/accounts/login/", "/accounts/signup/"])
+def test_pages_declare_a_favicon(client, db, url):
+    # Without one the browser asks for /favicon.ico and logs a 404.
+    html = client.get(url).content.decode()
+    assert '<link rel="icon" href="/static/img/favicon.svg" type="image/svg+xml">' in html
+
