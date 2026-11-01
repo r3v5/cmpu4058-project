@@ -70,6 +70,31 @@ def test_within_returns_sites_in_radius_and_buffer(demo_client, sites):
 
 # --- Country at point -----------------------------------------------------
 
+def test_within_uses_an_indexable_box_before_the_exact_distance(db):
+    # A bounding-box test (ST_Within) lets PostGIS use the GiST index on
+    # location; the exact ellipsoid distance then checks only those rows.
+    from ai_datacenters import spatial
+
+    sql = str(spatial.datacenters_within(Point(0, 0, srid=4326), 500).query)
+    assert "ST_Within" in sql
+    assert "ST_DistanceSpheroid" in sql
+
+
+@pytest.mark.parametrize(
+    "site, point, km",
+    [
+        ((-179.5, 0.0), (179.5, 0.0), 200),  # across the date line, ~111 km
+        ((60.0, 89.5), (-120.0, 89.5), 150),  # across the North Pole, ~111 km
+        ((4.4907, 0.0), (0.0, 0.0), 500),  # 499.9 km away: just inside
+    ],
+)
+def test_within_finds_sites_at_the_edges_of_the_box(demo_client, make_dc, site, point, km):
+    make_dc("Edge", *site)
+    response = demo_client.get("/api/datacenters/within/", {"lon": point[0], "lat": point[1], "km": km})
+    assert response.status_code == 200
+    assert feature_names(response.json()["sites"]) == ["Edge"]
+
+
 def test_country_at_point_returns_country_and_its_sites(demo_client, sites):
     response = demo_client.get("/api/countries/at/", {"lat": 5, "lon": 5})
     assert response.status_code == 200, response.content
@@ -155,3 +180,4 @@ def test_buffer_is_valid_and_continuous(lat, lon, km, inside):
     )
     for x, y in inside:
         assert buffer.contains(Point(x, y)), (x, y)
+
