@@ -321,9 +321,9 @@
 
   /** Zoom to a site chosen from a list and open its popup.
    *
-   * A standalone popup, not the marker's own: nearby searches cover all
-   * sites, so the site may be hidden by the filters. (markercluster's
-   * zoomToShowLayer never calls back for circle markers.)
+   * A standalone popup, not the marker's own: with "Only sites in map view"
+   * a nearby result can lie outside the view, so it has no marker yet.
+   * (markercluster's zoomToShowLayer never calls back for circle markers.)
    */
   function showSite(feature, opener) {
     const latlng = latLngOf(feature);
@@ -512,6 +512,7 @@
     );
     if (focused) ($(`#sites-list button[data-id="${focused}"]`) || $("#pane-sites")).focus();
     if (linksOn()) drawLinks();
+    refreshNearby();
     if (fit && sites.length) map.fitBounds(cluster.getBounds(), fitOptions);
   }
 
@@ -622,6 +623,7 @@
 
   function choosePoint(latlng) {
     queryPoint = latlng.wrap();
+    lastNearby = null;
     queryLayer.clearLayers();
     clearResults();
     L.marker(latlng, {
@@ -636,22 +638,49 @@
     dismissHint();
   }
 
+  // Nearby searches use the same search and filters as the map, so they
+  // only find sites the map shows. "Only sites in map view" is left out:
+  // the search zooms the map to its results, which would change the view.
+  function nearbyFilters() {
+    const params = filterParams();
+    params.delete("bbox");
+    return params;
+  }
+
   function pointParams(extra = {}) {
-    return new URLSearchParams({ lat: queryPoint.lat.toFixed(6), lon: queryPoint.lng.toFixed(6), ...extra });
+    const params = nearbyFilters();
+    params.set("lat", queryPoint.lat.toFixed(6));
+    params.set("lon", queryPoint.lng.toFixed(6));
+    for (const [name, value] of Object.entries(extra)) params.set(name, value);
+    return params;
+  }
+
+  // The last successful nearby search, run again (without moving the map)
+  // when the search or filters change, so its results always match the map.
+  let lastNearby = null; // { filters, redo }
+  function remember(redo) {
+    lastNearby = { filters: nearbyFilters().toString(), redo };
+  }
+  function refreshNearby() {
+    if (lastNearby && queryPoint && lastNearby.filters !== nearbyFilters().toString()) {
+      run(lastNearby.redo);
+    }
   }
 
   function clearResults() {
     resultsLayer.clearLayers();
     $("#results-heading").hidden = true;
+    $("#results-note").hidden = true;
     $("#results").replaceChildren();
   }
 
   function showResults(heading, items) {
+    const filtered = nearbyFilters().toString() !== "";
     $("#results-heading").textContent = heading;
     $("#results-heading").hidden = false;
-    $("#results").replaceChildren(
-      ...(items.length ? items : [el("li", { class: "text-secondary py-2" }, "No sites found.")]),
-    );
+    $("#results-note").hidden = !filtered;
+    const empty = filtered ? "No sites match your search and filters here." : "No sites found.";
+    $("#results").replaceChildren(...(items.length ? items : [el("li", { class: "text-secondary py-2" }, empty)]));
   }
 
   function fitTo(layer) {
@@ -659,16 +688,18 @@
     if (bounds.isValid()) map.fitBounds(bounds, fitOptions);
   }
 
-  async function nearest() {
+  async function nearest({ fit = true } = {}) {
     const data = await api("/api/datacenters/nearest/", pointParams({ n: 5 }));
+    remember(() => nearest({ fit: false }));
     clearResults();
     const lines = L.geoJSON(
       data.features.map((f) => f.properties.link),
       { style: { color: "#000", weight: 2, dashArray: "6 6" }, interactive: false },
     ).addTo(resultsLayer);
-    fitTo(lines);
+    if (fit) fitTo(lines);
+    const count = data.features.length;
     showResults(
-      `Nearest ${data.features.length} sites`,
+      count === 1 ? "Nearest site" : `Nearest ${count} sites`,
       data.features.map((f) =>
         siteButton(f, `${fmtKm(f.properties.distance_km)} · ${siteMW(f.properties)}`),
       ),
@@ -687,14 +718,15 @@
     return ok ? km : null;
   }
 
-  async function within(km) {
+  async function within(km, { fit = true } = {}) {
     const data = await api("/api/datacenters/within/", pointParams({ km }));
+    remember(() => within(km, { fit: false }));
     clearResults();
     const buffer = L.geoJSON(data.buffer, {
       style: { color: "#000", weight: 2, fillColor: "#000", fillOpacity: 0.1 },
       interactive: false,
     }).addTo(resultsLayer);
-    fitTo(buffer);
+    if (fit) fitTo(buffer);
     const found = data.sites.features;
     showResults(
       `${found.length} ${found.length === 1 ? "site" : "sites"} within ${fmtKm(km)}`,
@@ -702,12 +734,13 @@
     );
   }
 
-  async function countryHere() {
+  async function countryHere({ fit = true } = {}) {
     clearResults();
     const data = await api("/api/countries/at/", pointParams());
+    remember(() => countryHere({ fit: false }));
     const outline = L.geoJSON(data.country, { style: { color: "#000", weight: 4, fill: false }, interactive: false })
       .addTo(resultsLayer);
-    fitTo(outline);
+    if (fit) fitTo(outline);
     const c = data.country.properties;
     showResults(
       `${c.name}: ${c.site_count} ${c.site_count === 1 ? "site" : "sites"} · ${fmtMW(c.total_mw)} · ${fmtCost(c.total_cost_busd)}`,
@@ -756,6 +789,7 @@
   /** Undo a nearby search: remove the point, its results and their shapes. */
   function clearPoint() {
     queryPoint = null;
+    lastNearby = null;
     queryLayer.clearLayers();
     clearResults();
     map.closePopup();

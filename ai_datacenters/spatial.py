@@ -42,28 +42,33 @@ def recompute_nearest_links():
         DataCenter.objects.filter(pk=site.pk).update(nearest_link=link, nearest_km=km)
 
 
-def nearest_datacenters(point: Point, n: int):
-    """Nearest neighbours: the n sites closest to a point, closest first."""
+def nearest_datacenters(point: Point, n: int, sites: QuerySet[DataCenter] | None = None):
+    """Nearest neighbours: the n sites closest to a point, closest first.
+
+    ``sites`` limits the search (e.g. to the filtered list); default all.
+    """
+    sites = DataCenter.objects.all() if sites is None else sites
     return (
-        DataCenter.objects.select_related("country")
+        sites.select_related("country")
         .annotate(distance=Distance("location", point, spheroid=True))
         .order_by("distance")[:n]
     )
 
 
-def datacenters_within(point: Point, km: float):
+def datacenters_within(point: Point, km: float, sites: QuerySet[DataCenter] | None = None):
     """Radius search: sites within km of a point, closest first.
 
     Two steps. First the boxes around the search circle (``in_bbox``), which
     the GiST index on location answers without reading every row. Then the
     exact distance on the ellipsoid, which PostGIS computes only for the
-    sites inside the boxes.
+    sites inside the boxes. ``sites`` limits the search; default all.
     """
+    sites = DataCenter.objects.all() if sites is None else sites
     in_boxes = Q()
     for box in _circle_boxes(point, km):
         in_boxes |= Q(location__within=Polygon.from_bbox(box))
     return (
-        DataCenter.objects.select_related("country")
+        sites.select_related("country")
         .filter(in_boxes)
         .filter(location__distance_lte=(point, D(km=km), "spheroid"))
         .annotate(distance=Distance("location", point, spheroid=True))
@@ -144,9 +149,10 @@ def country_at(point: Point):
     return Country.objects.filter(geom__contains=point).first()
 
 
-def datacenters_in(country: Country):
+def datacenters_in(country: Country, sites: QuerySet[DataCenter] | None = None):
     """Containment: sites located inside a country polygon."""
-    return DataCenter.objects.select_related("country").filter(location__within=country.geom)
+    sites = DataCenter.objects.all() if sites is None else sites
+    return sites.select_related("country").filter(location__within=country.geom)
 
 
 def _sites_inside(expression: Expression, output_field: Field):
