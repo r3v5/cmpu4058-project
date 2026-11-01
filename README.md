@@ -163,8 +163,7 @@ The GiST spatial indexes on `location`, `nearest_link` and `geom`.
 | Deployment | Docker Compose: `web` (Django + gunicorn), `db` (PostGIS), `pgadmin`, `nginx` (reverse proxy) on the custom network `lbs` (172.28.0.0/16) |
 | Testing | pytest, pytest-django, pytest-cov; Playwright + axe-core for browser and accessibility checks |
 
-See [docs/architecture.md](docs/architecture.md) for the component diagram
-and a request flow.
+See [docs/architecture.md](docs/architecture.md) for the component diagram.
 
 ## Setup (local Docker deployment)
 
@@ -428,6 +427,7 @@ ai_datacenters/          The app
   api.py                 REST endpoints (DRF)
   views.py               HTML pages: map, sign-up
   serializers.py         GeoJSON serializers, query-parameter validation
+  forms.py               Login and sign-up forms (Bootstrap styling)
   filters.py             List filters, bounding-box parsing
   permissions.py         IsStaffOrReadOnly
   admin.py               GIS admin (staff CRUD)
@@ -435,7 +435,9 @@ ai_datacenters/          The app
   management/commands/   geocode_datacenters, import_datacenters, load_countries, seed_users
   migrations/            Database schema
   tests/                 pytest suite
-templates/               base, map, login and sign-up pages
+templates/               base and map pages
+  registration/          Login and sign-up pages
+  includes/field.html    One form field with its label and errors
 static/                  css/app.css, js/map.js, img/favicon.svg
 data/                    Geocoded sites CSV, manual coordinate overrides, Natural Earth borders
 docs/                    Architecture, schema, spatial SQL, screenshots
