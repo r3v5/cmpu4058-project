@@ -1,0 +1,6 @@
+# Coverage of the app code only: tests and migrations are left out.
+[run]
+source = ai_datacenters
+omit =
+    */tests/*
+    */migrations/*
