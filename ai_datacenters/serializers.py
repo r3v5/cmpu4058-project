@@ -35,10 +35,10 @@ class NearestDataCenterSerializer(DataCenterSerializer):
     class Meta(DataCenterSerializer.Meta):
         fields = DataCenterSerializer.Meta.fields + ["distance_km", "link"]
 
-    def get_distance_km(self, obj: DataCenter):
+    def get_distance_km(self, obj: DataCenter) -> float:
         return round(obj.distance.km, 2)
 
-    def get_link(self, obj: DataCenter):
+    def get_link(self, obj: DataCenter) -> dict:
         line = LineString(self.context["point"], obj.location, srid=4326)
         return json.loads(line.geojson)
 

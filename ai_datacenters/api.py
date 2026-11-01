@@ -4,7 +4,9 @@ import json
 
 from django.contrib.gis.geos import Point
 from django.db.models import Max, Min
-from rest_framework import status, viewsets
+from django_filters import MultipleChoiceFilter, NumberFilter
+from drf_spectacular.utils import OpenApiParameter, extend_schema, inline_serializer
+from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action, api_view
 from rest_framework.exceptions import ValidationError
 from rest_framework.request import Request
@@ -32,6 +34,23 @@ def query_point(serializer_class: type[PointQuerySerializer], request: Request):
     return Point(data["lon"], data["lat"], srid=4326), data
 
 
+def list_filter_parameters():
+    """The list filters as OpenAPI query parameters, read from DataCenterFilter.
+
+    The nearby endpoints validate their parameters by hand, so the schema
+    generator cannot see them; this lists them for Swagger UI.
+    """
+    return [
+        OpenApiParameter(
+            name,
+            float if isinstance(f, NumberFilter) else str,
+            OpenApiParameter.QUERY,
+            many=isinstance(f, MultipleChoiceFilter),
+        )
+        for name, f in DataCenterFilter.base_filters.items()
+    ]
+
+
 def filtered_sites(request: Request):
     """The sites that match the list filters in the query string.
 
@@ -52,6 +71,10 @@ class DataCenterViewSet(viewsets.ModelViewSet):
     permission_classes = [IsStaffOrReadOnly]
     filterset_class = DataCenterFilter
 
+    @extend_schema(
+        parameters=[NearestQuerySerializer, *list_filter_parameters()],
+        responses=NearestDataCenterSerializer(many=True),
+    )
     @action(detail=False)
     def nearest(self, request: Request):
         """?lat=&lon=&n= — the n nearest sites, each with a line from the point.
@@ -62,6 +85,13 @@ class DataCenterViewSet(viewsets.ModelViewSet):
         sites = spatial.nearest_datacenters(point, params["n"], filtered_sites(request))
         return Response(NearestDataCenterSerializer(sites, many=True, context={"point": point}).data)
 
+    @extend_schema(
+        parameters=[WithinQuerySerializer, *list_filter_parameters()],
+        responses=inline_serializer(
+            "WithinResponse",
+            {"buffer": serializers.JSONField(help_text="GeoJSON Polygon"), "sites": NearestDataCenterSerializer(many=True)},
+        ),
+    )
     @action(detail=False)
     def within(self, request: Request):
         """?lat=&lon=&km= — sites within the radius, plus the buffer polygon.
@@ -77,6 +107,13 @@ class DataCenterViewSet(viewsets.ModelViewSet):
         })
 
 
+@extend_schema(
+    parameters=[PointQuerySerializer, *list_filter_parameters()],
+    responses=inline_serializer(
+        "CountryAtResponse",
+        {"country": CountrySummarySerializer(), "sites": DataCenterSerializer(many=True)},
+    ),
+)
 @api_view(["GET"])
 def country_at(request: Request):
     """?lat=&lon= — the country containing the point and the sites inside it.
@@ -97,12 +134,25 @@ def country_at(request: Request):
     })
 
 
+@extend_schema(responses=CountrySummarySerializer(many=True))
 @api_view(["GET"])
 def country_stats(request: Request):
     """Countries with at least one site and their totals (for the choropleth)."""
     return Response(CountrySummarySerializer(spatial.country_stats(), many=True).data)
 
 
+@extend_schema(
+    responses=inline_serializer(
+        "FilterOptions",
+        {
+            "owners": serializers.ListField(child=serializers.CharField()),
+            "countries": serializers.ListField(child=serializers.CharField()),
+            "power_mw": serializers.DictField(child=serializers.FloatField(allow_null=True)),
+            "capital_cost_busd": serializers.DictField(child=serializers.FloatField(allow_null=True)),
+            "h100e": serializers.DictField(child=serializers.FloatField(allow_null=True)),
+        },
+    )
+)
 @api_view(["GET"])
 def filter_options(request: Request):
     """Values for the filter form: owners, countries and MW/cost/H100e ranges."""
