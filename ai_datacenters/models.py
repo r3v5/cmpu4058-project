@@ -80,6 +80,9 @@ class DataCenter(models.Model):
         from .spatial import recompute_nearest_links
 
         recompute_nearest_links()
+        # The recompute wrote this row's line with update(); load it so the
+        # object (and the API response built from it) is up to date.
+        self.refresh_from_db(fields=["nearest_link", "nearest_km"])
 
     def delete(self, *args, **kwargs):
         result = super().delete(*args, **kwargs)
