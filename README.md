@@ -174,8 +174,8 @@ plugin), git, free ports **80** and **5050**, and an internet connection
 ### 1. Get the code
 
 ```bash
-git clone <this repository>
-cd advanced-web-mapping-ca1
+git clone https://github.com/r3v5/cmpu4058-project.git
+cd cmpu4058-project
 ```
 
 ### 2. Configure the environment
